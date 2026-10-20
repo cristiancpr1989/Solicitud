@@ -1,2 +1,2 @@
 # Solicitud
-prueba uno de ese formato horrble
+prueba uno de ese formato horrible
