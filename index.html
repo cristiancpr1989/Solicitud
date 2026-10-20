@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solicitud de Servicios</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#1B3A6B; --blue:#0072BC; --sky:#00AEEF; --gold:#E8B10E;
+  --bg:#F4F6FA; --card:#FFFFFF; --ink:#1C2430; --muted:#5F6B7A; --line:#D9DFE8;
+  --err:#C62828; --errbg:#FDECEC; --ok:#2E7D32; --okbg:#E8F5E9; --warnbg:#FFF6DB;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",Roboto,Arial,sans-serif}
+header{background:var(--card);border-bottom:4px solid var(--navy)}
+.hwrap{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hwrap img{height:44px}
+.htitle{flex:1;min-width:200px}
+.htitle h1{margin:0;font-size:20px;color:var(--navy)}
+.htitle small{color:var(--muted)}
+.code{font:600 12px/1.3 Consolas,monospace;color:var(--navy);text-align:right}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.steps{display:flex;gap:6px;margin:4px 0 16px;flex-wrap:wrap}
+.steps div{flex:1;min-width:120px;padding:8px 10px;border-radius:6px;background:#E6EAF1;color:var(--muted);font-size:13px;font-weight:600}
+.steps div.on{background:var(--navy);color:#fff}
+.steps div.done{background:#CFE3F5;color:var(--navy)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+.card h2{margin:0 0 4px;font-size:17px;color:var(--navy)}
+.card p.lead{margin:0 0 14px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 16px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:13px;font-weight:600}
+.f label .req{color:var(--err)}
+input[type=text],input[type=email],input[type=tel],select,textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);width:100%}
+textarea{min-height:64px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--sky);border-color:var(--sky)}
+.bad{border-color:var(--err)!important;background:var(--errbg)!important}
+.msg{color:var(--err);font-size:12px}
+.hint{color:var(--muted);font-size:12px}
+.btn{font:600 14px/1 inherit;font-family:inherit;padding:10px 16px;border-radius:6px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}
+.btn.sec{background:#fff;color:var(--navy)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#1C2430}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.nav{display:flex;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap}
+.radios{display:flex;gap:8px;flex-wrap:wrap}
+.radios label{display:flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-weight:500;background:#fff}
+.radios label.sel{border-color:var(--blue);background:#E7F2FB}
+.note{padding:10px 12px;border-radius:6px;background:#E7F2FB;border-left:4px solid var(--blue);font-size:14px;margin:10px 0}
+.note.warn{background:var(--warnbg);border-color:var(--gold)}
+.note.err{background:var(--errbg);border-color:var(--err)}
+.note.ok{background:var(--okbg);border-color:var(--ok)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;background:#FAFBFD}
+.drop.over{border-color:var(--blue);background:#E7F2FB}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin-top:12px}
+table{border-collapse:collapse;width:100%;min-width:980px}
+th,td{border-bottom:1px solid var(--line);padding:6px;vertical-align:top;text-align:left}
+th{background:#EEF2F8;font-size:12px;color:var(--navy);position:sticky;top:0}
+td input,td select{padding:6px 7px;font-size:13px}
+td .msg{display:block;margin-top:2px}
+td.n{font-weight:700;color:var(--navy);width:34px}
+.errlist{max-height:180px;overflow:auto;margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--err)}
+.item{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}
+.item h3{margin:0 0 2px;font-size:15px;color:var(--navy)}
+.item .sub{color:var(--muted);font-size:13px;margin-bottom:8px}
+.req-box{font-size:13px;background:#F6F8FB;border-radius:6px;padding:6px 8px;margin-bottom:10px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;padding:10px;background:#F6F8FB;border-radius:8px;margin-bottom:12px}
+.toolbar .f{min-width:220px}
+.epp{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px}
+.epp label{display:flex;gap:8px;align-items:center;font-size:14px}
+.sum dt{font-weight:600;color:var(--navy);margin-top:6px}
+.sum dd{margin:0 0 4px}
+.link{word-break:break-all;font:13px Consolas,monospace;background:#F6F8FB;padding:8px;border-radius:6px;border:1px solid var(--line)}
+.hidden{display:none!important}
+@media print{header .code,.steps,.nav,.noprint{display:none!important}body{background:#fff}.card{border:none}}
+</style>
+</head>
+<body>
+<header><div class="hwrap">
+  <img alt="Metrological Center S.A.S." src="data:image/jpeg;base64,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">
+  <div class="htitle"><h1>Solicitud de Servicios</h1><small>Metrological Center S.A.S.</small></div>
+  <div class="code">PCO-FO-04<br>V.1 · web</div>
+</div></header>
+<main id="app"></main>
+
+<script>
+/* ====== CONFIGURACIÓN ====== */
+const FILE_REQUEST_URL = "https://metcentersas-my.sharepoint.com/:f:/g/personal/crueda_metcentersas_onmicrosoft_com/IgAoW-4-5VtkQ4dr43T6wSp8AexKUn93XBqggAZt6jpBvj8";
+const APP_VERSION = "1.0";
+const MAX_ITEMS = 50;
+
+/* ====== CATÁLOGOS (extraídos de la hoja "Base de datos" del PCO-FO-04) ====== */
+const CAT = {"mun": ["Bogotá D.C. - Bogotá D.C.", "Abejorral - Antioquia", "Abrego - Norte de Santander", "Abriaquí - Antioquia", "Acacias - Meta", "Acandí - Chocó", "Acevedo - Huila", "Achí - Bolívar", "Agrado - Huila", "Agua de Dios - Cundinamarca", "Aguachica - Cesar", "Aguada - Santander", "Aguadas - Caldas", "Aguazul - Casanare", "Agustín Codazzi - Cesar", "Aipe - Huila", "Albán - Cundinamarca", "Albán - Nariño", "Albania - Caquetá", "Albania - La Guajira", "Albania - Santander", "Alcalá - Valle del Cauca", "Aldana - Nariño", "Alejandría - Antioquia", "Algarrobo - Magdalena", "Algeciras - Huila", "Almaguer - Cauca", "Almeida - Boyacá", "Alpujarra - Tolima", "Altamira - Huila", "Alto Baudo - Chocó", "Altos del Rosario - Bolívar", "Alvarado - Tolima", "Amagá - Antioquia", "Amalfi - Antioquia", "Ambalema - Tolima", "Anapoima - Cundinamarca", "Ancuyá - Nariño", "Andalucía - Valle del Cauca", "Andes - Antioquia", "Angelópolis - Antioquia", "Angostura - Antioquia", "Anolaima - Cundinamarca", "Anorí - Antioquia", "Anserma - Caldas", "Ansermanuevo - Valle del Cauca", "Anza - Antioquia", "Anzoátegui - Tolima", "Apartadó - Antioquia", "Apía - Risaralda", "Apulo - Cundinamarca", "Aquitania - Boyacá", "Aracataca - Magdalena", "Aranzazu - Caldas", "Aratoca - Santander", "Arauca - Arauca", "Arauquita - Arauca", "Arbeláez - Cundinamarca", "Arboleda - Nariño", "Arboledas - Norte de Santander", "Arboletes - Antioquia", "Arcabuco - Boyacá", "Arenal - Bolívar", "Argelia - Antioquia", "Argelia - Cauca", "Argelia - Valle del Cauca", "Ariguaní - Magdalena", "Arjona - Bolívar", "Armenia - Antioquia", "Armenia - Quindío", "Armero - Tolima", "Arroyohondo - Bolívar", "Astrea - Cesar", "Ataco - Tolima", "Atrato - Chocó", "Ayapel - Córdoba", "Bagadó - Chocó", "Bahía Solano - Chocó", "Bajo Baudó - Chocó", "Balboa - Cauca", "Balboa - Risaralda", "Baranoa - Atlántico", "Baraya - Huila", "Barbacoas - Nariño", "Barbosa - Antioquia", "Barbosa - Santander", "Barichara - Santander", "Barranca de Upía - Meta", "Barrancabermeja - Santander", "Barrancas - La Guajira", "Barranco de Loba - Bolívar", "Barranco Minas - Guainía", "Barranquilla - Atlántico", "Becerril - Cesar", "Belalcázar - Caldas", "Belén - Boyacá", "Belén - Nariño", "Belén de Bajira - Chocó", "Belén de Los Andaquies - Caquetá", "Belén de Umbría - Risaralda", "Bello - Antioquia", "Belmira - Antioquia", "Beltrán - Cundinamarca", "Berbeo - Boyacá", "Betania - Antioquia", "Betéitiva - Boyacá", "Betulia - Antioquia", "Betulia - Santander", "Bituima - Cundinamarca", "Boavita - Boyacá", "Bochalema - Norte de Santander", "Bojacá - Cundinamarca", "Bojaya - Chocó", "Bolívar - Cauca", "Bolívar - Santander", "Bolívar - Valle del Cauca", "Bosconia - Cesar", "Boyacá - Boyacá", "Briceño - Antioquia", "Briceño - Boyacá", "Bucaramanga - Santander", "Bucarasica - Norte de Santander", "Buena Vista - Boyacá", "Buenaventura - Valle del Cauca", "Buenavista - Córdoba", "Buenavista - Quindío", "Buenavista - Sucre", "Buenos Aires - Cauca", "Buesaco - Nariño", "Bugalagrande - Valle del Cauca", "Buriticá - Antioquia", "Busbanzá - Boyacá", "Cabrera - Cundinamarca", "Cabrera - Santander", "Cabuyaro - Meta", "Cacahual - Guainía", "Cáceres - Antioquia", "Cachipay - Cundinamarca", "Cachirá - Norte de Santander", "Cácota - Norte de Santander", "Caicedo - Antioquia", "Caicedonia - Valle del Cauca", "Caimito - Sucre", "Cajamarca - Tolima", "Cajibío - Cauca", "Cajicá - Cundinamarca", "Calamar - Bolívar", "Calamar - Guaviare", "Calarcá - Quindío", "Caldas - Antioquia", "Caldas - Boyacá", "Caldono - Cauca", "Cali - Valle del Cauca", "California - Santander", "Calima - Valle del Cauca", "Caloto - Cauca", "Campamento - Antioquia", "Campo de La Cruz - Atlántico", "Campoalegre - Huila", "Campohermoso - Boyacá", "Canalete - Córdoba", "Candelaria - Atlántico", "Candelaria - Valle del Cauca", "Cantagallo - Bolívar", "Cañasgordas - Antioquia", "Caparrapí - Cundinamarca", "Capitanejo - Santander", "Caqueza - Cundinamarca", "Caracolí - Antioquia", "Caramanta - Antioquia", "Carcasí - Santander", "Carepa - Antioquia", "Carmen de Apicala - Tolima", "Carmen de Carupa - Cundinamarca", "Carmen del Darien - Chocó", "Carolina - Antioquia", "Cartagena - Bolívar", "Cartagena del Chairá - Caquetá", "Cartago - Valle del Cauca", "Caruru - Vaupés", "Casabianca - Tolima", "Castilla la Nueva - Meta", "Caucasia - Antioquia", "Cepitá - Santander", "Cereté - Córdoba", "Cerinza - Boyacá", "Cerrito - Santander", "Cerro San Antonio - Magdalena", "Cértegui - Chocó", "Chachagüí - Nariño", "Chaguaní - Cundinamarca", "Chalán - Sucre", "Chámeza - Casanare", "Chaparral - Tolima", "Charalá - Santander", "Charta - Santander", "Chía - Cundinamarca", "Chigorodó - Antioquia", "Chimá - Córdoba", "Chimá - Santander", "Chimichagua - Cesar", "Chinácota - Norte de Santander", "Chinavita - Boyacá", "Chinchiná - Caldas", "Chinú - Córdoba", "Chipaque - Cundinamarca", "Chipatá - Santander", "Chiquinquirá - Boyacá", "Chíquiza - Boyacá", "Chiriguaná - Cesar", "Chiscas - Boyacá", "Chita - Boyacá", "Chitagá - Norte de Santander", "Chitaraque - Boyacá", "Chivatá - Boyacá", "Chivolo - Magdalena", "Chivor - Boyacá", "Choachí - Cundinamarca", "Chocontá - Cundinamarca", "Cicuco - Bolívar", "Ciénaga - Magdalena", "Ciénaga de Oro - Córdoba", "Ciénega - Boyacá", "Cimitarra - Santander", "Circasia - Quindío", "Cisneros - Antioquia", "Ciudad Bolívar - Antioquia", "Clemencia - Bolívar", "Cocorná - Antioquia", "Coello - Tolima", "Cogua - Cundinamarca", "Colombia - Huila", "Colón - Nariño", "Colón - Putumayo", "Coloso - Sucre", "Cómbita - Boyacá", "Concepción - Antioquia", "Concepción - Santander", "Concordia - Antioquia", "Concordia - Magdalena", "Condoto - Chocó", "Confines - Santander", "Consaca - Nariño", "Contadero - Nariño", "Contratación - Santander", "Convención - Norte de Santander", "Copacabana - Antioquia", "Coper - Boyacá", "Córdoba - Bolívar", "Córdoba - Nariño", "Córdoba - Quindío", "Corinto - Cauca", "Coromoro - Santander", "Corozal - Sucre", "Corrales - Boyacá", "Cota - Cundinamarca", "Cotorra - Córdoba", "Covarachía - Boyacá", "Coveñas - Sucre", "Coyaima - Tolima", "Cravo Norte - Arauca", "Cuaspud - Nariño", "Cubará - Boyacá", "Cubarral - Meta", "Cucaita - Boyacá", "Cucunubá - Cundinamarca", "Cúcuta - Norte de Santander", "Cucutilla - Norte de Santander", "Cuítiva - Boyacá", "Cumaral - Meta", "Cumaribo - Vichada", "Cumbal - Nariño", "Cumbitara - Nariño", "Cunday - Tolima", "Curillo - Caquetá", "Curití - Santander", "Curumaní - Cesar", "Dabeiba - Antioquia", "Dagua - Valle del Cauca", "Dibula - La Guajira", "Distracción - La Guajira", "Dolores - Tolima", "Don Matías - Antioquia", "Dosquebradas - Risaralda", "Duitama - Boyacá", "Durania - Norte de Santander", "Ebéjico - Antioquia", "El Águila - Valle del Cauca", "El Bagre - Antioquia", "El Banco - Magdalena", "El Cairo - Valle del Cauca", "El Calvario - Meta", "El Cantón del San Pablo - Chocó", "El Carmen - Norte de Santander", "El Carmen de Atrato - Chocó", "El Carmen de Bolívar - Bolívar", "El Carmen de Chucurí - Santander", "El Carmen de Viboral - Antioquia", "El Castillo - Meta", "El Cerrito - Valle del Cauca", "El Charco - Nariño", "El Cocuy - Boyacá", "El Colegio - Cundinamarca", "El Copey - Cesar", "El Doncello - Caquetá", "El Dorado - Meta", "El Dovio - Valle del Cauca", "El Encanto - Amazonas", "El Espino - Boyacá", "El Guacamayo - Santander", "El Guamo - Bolívar", "El Litoral del San Juan - Chocó", "El Molino - La Guajira", "El Paso - Cesar", "El Paujil - Caquetá", "El Peñol - Nariño", "El Peñón - Bolívar", "El Peñón - Cundinamarca", "El Peñón - Santander", "El Piñon - Magdalena", "El Playón - Santander", "El Retén - Magdalena", "El Retorno - Guaviare", "El Roble - Sucre", "El Rosal - Cundinamarca", "El Rosario - Nariño", "El Santuario - Antioquia", "El Tablón de Gómez - Nariño", "El Tambo - Cauca", "El Tambo - Nariño", "El Tarra - Norte de Santander", "El Zulia - Norte de Santander", "Elías - Huila", "Encino - Santander", "Enciso - Santander", "Entrerrios - Antioquia", "Envigado - Antioquia", "Espinal - Tolima", "Facatativá - Cundinamarca", "Falan - Tolima", "Filadelfia - Caldas", "Filandia - Quindío", "Firavitoba - Boyacá", "Flandes - Tolima", "Florencia - Caquetá", "Florencia - Cauca", "Floresta - Boyacá", "Florián - Santander", "Florida - Valle del Cauca", "Floridablanca - Santander", "Fomeque - Cundinamarca", "Fonseca - La Guajira", "Fortul - Arauca", "Fosca - Cundinamarca", "Francisco Pizarro - Nariño", "Fredonia - Antioquia", "Fresno - Tolima", "Frontino - Antioquia", "Fuente de Oro - Meta", "Fundación - Magdalena", "Funes - Nariño", "Funza - Cundinamarca", "Fúquene - Cundinamarca", "Fusagasugá - Cundinamarca", "Gachala - Cundinamarca", "Gachancipá - Cundinamarca", "Gachantivá - Boyacá", "Gachetá - Cundinamarca", "Galán - Santander", "Galapa - Atlántico", "Galeras - Sucre", "Gama - Cundinamarca", "Gamarra - Cesar", "Gambita - Santander", "Gameza - Boyacá", "Garagoa - Boyacá", "Garzón - Huila", "Génova - Quindío", "Gigante - Huila", "Ginebra - Valle del Cauca", "Giraldo - Antioquia", "Girardot - Cundinamarca", "Girardota - Antioquia", "Girón - Santander", "Gómez Plata - Antioquia", "González - Cesar", "Gramalote - Norte de Santander", "Granada - Antioquia", "Granada - Cundinamarca", "Granada - Meta", "Guaca - Santander", "Guacamayas - Boyacá", "Guacarí - Valle del Cauca", "Guachené - Cauca", "Guachetá - Cundinamarca", "Guachucal - Nariño", "Guadalajara de Buga - Valle del Cauca", "Guadalupe - Antioquia", "Guadalupe - Huila", "Guadalupe - Santander", "Guaduas - Cundinamarca", "Guaitarilla - Nariño", "Gualmatán - Nariño", "Guamal - Magdalena", "Guamal - Meta", "Guamo - Tolima", "Guapi - Cauca", "Guapotá - Santander", "Guaranda - Sucre", "Guarne - Antioquia", "Guasca - Cundinamarca", "Guatapé - Antioquia", "Guataquí - Cundinamarca", "Guatavita - Cundinamarca", "Guateque - Boyacá", "Guática - Risaralda", "Guavatá - Santander", "Guayabal de Siquima - Cundinamarca", "Guayabetal - Cundinamarca", "Guayatá - Boyacá", "Güepsa - Santander", "Güicán - Boyacá", "Gutiérrez - Cundinamarca", "Hacarí - Norte de Santander", "Hatillo de Loba - Bolívar", "Hato - Santander", "Hato Corozal - Casanare", "Hatonuevo - La Guajira", "Heliconia - Antioquia", "Herrán - Norte de Santander", "Herveo - Tolima", "Hispania - Antioquia", "Hobo - Huila", "Honda - Tolima", "Ibagué - Tolima", "Icononzo - Tolima", "Iles - Nariño", "Imués - Nariño", "Inírida - Guainía", "Inzá - Cauca", "Ipiales - Nariño", "Iquira - Huila", "Isnos - Huila", "Istmina - Chocó", "Itagui - Antioquia", "Ituango - Antioquia", "Iza - Boyacá", "Jambaló - Cauca", "Jamundí - Valle del Cauca", "Jardín - Antioquia", "Jenesano - Boyacá", "Jericó - Antioquia", "Jericó - Boyacá", "Jerusalén - Cundinamarca", "Jesús María - Santander", "Jordán - Santander", "Juan de Acosta - Atlántico", "Junín - Cundinamarca", "Juradó - Chocó", "La Apartada - Córdoba", "La Argentina - Huila", "La Belleza - Santander", "La Calera - Cundinamarca", "La Capilla - Boyacá", "La Ceja - Antioquia", "La Celia - Risaralda", "La Chorrera - Amazonas", "La Cruz - Nariño", "La Cumbre - Valle del Cauca", "La Dorada - Caldas", "La Esperanza - Norte de Santander", "La Estrella - Antioquia", "La Florida - Nariño", "La Gloria - Cesar", "La Guadalupe - Guainía", "La Jagua de Ibirico - Cesar", "La Jagua del Pilar - La Guajira", "La Llanada - Nariño", "La Macarena - Meta", "La Merced - Caldas", "La Mesa - Cundinamarca", "La Montañita - Caquetá", "La Palma - Cundinamarca", "La Paz - Cesar", "La Paz - Santander", "La Pedrera - Amazonas", "La Peña - Cundinamarca", "La Pintada - Antioquia", "La Plata - Huila", "La Playa - Norte de Santander", "La Primavera - Vichada", "La Salina - Casanare", "La Sierra - Cauca", "La Tebaida - Quindío", "La Tola - Nariño", "La Unión - Antioquia", "La Unión - Nariño", "La Unión - Sucre", "La Unión - Valle del Cauca", "La Uvita - Boyacá", "La Vega - Cauca", "La Vega - Cundinamarca", "La Victoria - Amazonas", "La Victoria - Boyacá", "La Victoria - Valle del Cauca", "La Virginia - Risaralda", "Labateca - Norte de Santander", "Labranzagrande - Boyacá", "Landázuri - Santander", "Lebríja - Santander", "Leguízamo - Putumayo", "Leiva - Nariño", "Lejanías - Meta", "Lenguazaque - Cundinamarca", "Lérida - Tolima", "Leticia - Amazonas", "Líbano - Tolima", "Liborina - Antioquia", "Linares - Nariño", "Lloró - Chocó", "López - Cauca", "Lorica - Córdoba", "Los Andes - Nariño", "Los Córdobas - Córdoba", "Los Palmitos - Sucre", "Los Patios - Norte de Santander", "Los Santos - Santander", "Lourdes - Norte de Santander", "Luruaco - Atlántico", "Macanal - Boyacá", "Macaravita - Santander", "Maceo - Antioquia", "Macheta - Cundinamarca", "Madrid - Cundinamarca", "Magangué - Bolívar", "Magüí - Nariño", "Mahates - Bolívar", "Maicao - La Guajira", "Majagual - Sucre", "Málaga - Santander", "Malambo - Atlántico", "Mallama - Nariño", "Manatí - Atlántico", "Manaure - Cesar", "Manaure - La Guajira", "Maní - Casanare", "Manizales - Caldas", "Manta - Cundinamarca", "Manzanares - Caldas", "Mapiripán - Meta", "Mapiripana - Guainía", "Margarita - Bolívar", "María la Baja - Bolívar", "Marinilla - Antioquia", "Maripí - Boyacá", "Mariquita - Tolima", "Marmato - Caldas", "Marquetalia - Caldas", "Marsella - Risaralda", "Marulanda - Caldas", "Matanza - Santander", "Medellín - Antioquia", "Medina - Cundinamarca", "Medio Atrato - Chocó", "Medio Baudó - Chocó", "Medio San Juan - Chocó", "Melgar - Tolima", "Mercaderes - Cauca", "Mesetas - Meta", "Milán - Caquetá", "Miraflores - Boyacá", "Miraflores - Guaviare", "Miranda - Cauca", "Miriti Paraná - Amazonas", "Mistrató - Risaralda", "Mitú - Vaupés", "Mocoa - Putumayo", "Mogotes - Santander", "Molagavita - Santander", "Momil - Córdoba", "Mompós - Bolívar", "Mongua - Boyacá", "Monguí - Boyacá", "Moniquirá - Boyacá", "Montebello - Antioquia", "Montecristo - Bolívar", "Montelíbano - Córdoba", "Montenegro - Quindío", "Montería - Córdoba", "Monterrey - Casanare", "Moñitos - Córdoba", "Morales - Bolívar", "Morales - Cauca", "Morelia - Caquetá", "Morichal - Guainía", "Morroa - Sucre", "Mosquera - Cundinamarca", "Mosquera - Nariño", "Motavita - Boyacá", "Murillo - Tolima", "Murindó - Antioquia", "Mutatá - Antioquia", "Mutiscua - Norte de Santander", "Muzo - Boyacá", "Nariño - Antioquia", "Nariño - Cundinamarca", "Nariño - Nariño", "Nátaga - Huila", "Natagaima - Tolima", "Nechí - Antioquia", "Necoclí - Antioquia", "Neira - Caldas", "Neiva - Huila", "Nemocón - Cundinamarca", "Nilo - Cundinamarca", "Nimaima - Cundinamarca", "Nobsa - Boyacá", "Nocaima - Cundinamarca", "Norcasia - Caldas", "Norosí - Bolívar", "Nóvita - Chocó", "Nueva Granada - Magdalena", "Nuevo Colón - Boyacá", "Nunchía - Casanare", "Nuquí - Chocó", "Obando - Valle del Cauca", "Ocamonte - Santander", "Ocaña - Norte de Santander", "Oiba - Santander", "Oicatá - Boyacá", "Olaya - Antioquia", "Olaya Herrera - Nariño", "Onzaga - Santander", "Oporapa - Huila", "Orito - Putumayo", "Orocué - Casanare", "Ortega - Tolima", "Ospina - Nariño", "Otanche - Boyacá", "Ovejas - Sucre", "Pachavita - Boyacá", "Pacho - Cundinamarca", "Pacoa - Vaupés", "Pácora - Caldas", "Padilla - Cauca", "Páez - Boyacá", "Páez - Cauca", "Paicol - Huila", "Pailitas - Cesar", "Paime - Cundinamarca", "Paipa - Boyacá", "Pajarito - Boyacá", "Palermo - Huila", "Palestina - Caldas", "Palestina - Huila", "Palmar - Santander", "Palmar de Varela - Atlántico", "Palmas del Socorro - Santander", "Palmira - Valle del Cauca", "Palmito - Sucre", "Palocabildo - Tolima", "Pamplona - Norte de Santander", "Pamplonita - Norte de Santander", "Pana Pana - Guainía", "Pandi - Cundinamarca", "Panqueba - Boyacá", "Papunaua - Vaupés", "Páramo - Santander", "Paratebueno - Cundinamarca", "Pasca - Cundinamarca", "Pasto - Nariño", "Patía - Cauca", "Pauna - Boyacá", "Paya - Boyacá", "Paz de Ariporo - Casanare", "Paz de Río - Boyacá", "Pedraza - Magdalena", "Pelaya - Cesar", "Pensilvania - Caldas", "Peñol - Antioquia", "Peque - Antioquia", "Pereira - Risaralda", "Pesca - Boyacá", "Piamonte - Cauca", "Piedecuesta - Santander", "Piedras - Tolima", "Piendamó - Cauca", "Pijao - Quindío", "Pijiño del Carmen - Magdalena", "Pinchote - Santander", "Pinillos - Bolívar", "Piojó - Atlántico", "Pisba - Boyacá", "Pital - Huila", "Pitalito - Huila", "Pivijay - Magdalena", "Planadas - Tolima", "Planeta Rica - Córdoba", "Plato - Magdalena", "Policarpa - Nariño", "Polonuevo - Atlántico", "Ponedera - Atlántico", "Popayán - Cauca", "Pore - Casanare", "Potosí - Nariño", "Pradera - Valle del Cauca", "Prado - Tolima", "Providencia - Archipiélago de San Andrés, Providencia y Santa Catalina", "Providencia - Nariño", "Pueblo Bello - Cesar", "Pueblo Nuevo - Córdoba", "Pueblo Rico - Risaralda", "Pueblo Viejo - Magdalena", "Pueblorrico - Antioquia", "Puente Nacional - Santander", "Puerres - Nariño", "Puerto Alegría - Amazonas", "Puerto Arica - Amazonas", "Puerto Asís - Putumayo", "Puerto Berrío - Antioquia", "Puerto Boyacá - Boyacá", "Puerto Caicedo - Putumayo", "Puerto Carreño - Vichada", "Puerto Colombia - Atlántico", "Puerto Colombia - Guainía", "Puerto Concordia - Meta", "Puerto Escondido - Córdoba", "Puerto Gaitán - Meta", "Puerto Guzmán - Putumayo", "Puerto Libertador - Córdoba", "Puerto Lleras - Meta", "Puerto López - Meta", "Puerto Nare - Antioquia", "Puerto Nariño - Amazonas", "Puerto Parra - Santander", "Puerto Rico - Caquetá", "Puerto Rico - Meta", "Puerto Rondón - Arauca", "Puerto Salgar - Cundinamarca", "Puerto Santander - Amazonas", "Puerto Santander - Norte de Santander", "Puerto Tejada - Cauca", "Puerto Triunfo - Antioquia", "Puerto Wilches - Santander", "Pulí - Cundinamarca", "Pupiales - Nariño", "Puracé - Cauca", "Purificación - Tolima", "Purísima - Córdoba", "Quebradanegra - Cundinamarca", "Quetame - Cundinamarca", "Quibdó - Chocó", "Quimbaya - Quindío", "Quinchía - Risaralda", "Quípama - Boyacá", "Quipile - Cundinamarca", "Ragonvalia - Norte de Santander", "Ramiriquí - Boyacá", "Ráquira - Boyacá", "Recetor - Casanare", "Regidor - Bolívar", "Remedios - Antioquia", "Remolino - Magdalena", "Repelón - Atlántico", "Restrepo - Meta", "Restrepo - Valle del Cauca", "Retiro - Antioquia", "Ricaurte - Cundinamarca", "Ricaurte - Nariño", "Rio Blanco - Tolima", "Río de Oro - Cesar", "Río Iro - Chocó", "Río Quito - Chocó", "Río Viejo - Bolívar", "Riofrío - Valle del Cauca", "Riohacha - La Guajira", "Rionegro - Antioquia", "Rionegro - Santander", "Riosucio - Caldas", "Riosucio - Chocó", "Risaralda - Caldas", "Rivera - Huila", "Roberto Payán - Nariño", "Roldanillo - Valle del Cauca", "Roncesvalles - Tolima", "Rondón - Boyacá", "Rosas - Cauca", "Rovira - Tolima", "Sabana de Torres - Santander", "Sabanagrande - Atlántico", "Sabanalarga - Antioquia", "Sabanalarga - Atlántico", "Sabanalarga - Casanare", "Sabanas de San Angel - Magdalena", "Sabaneta - Antioquia", "Saboyá - Boyacá", "Sácama - Casanare", "Sáchica - Boyacá", "Sahagún - Córdoba", "Saladoblanco - Huila", "Salamina - Caldas", "Salamina - Magdalena", "Salazar - Norte de Santander", "Saldaña - Tolima", "Salento - Quindío", "Salgar - Antioquia", "Samacá - Boyacá", "Samaná - Caldas", "Samaniego - Nariño", "Sampués - Sucre", "San Agustín - Huila", "San Alberto - Cesar", "San Andrés - Archipiélago de San Andrés, Providencia y Santa Catalina", "San Andrés - Santander", "San Andrés de Cuerquía - Antioquia", "San Andrés de Tumaco - Nariño", "San Andrés Sotavento - Córdoba", "San Antero - Córdoba", "San Antonio - Tolima", "San Antonio del Tequendama - Cundinamarca", "San Benito - Santander", "San Benito Abad - Sucre", "San Bernardo - Cundinamarca", "San Bernardo - Nariño", "San Bernardo del Viento - Córdoba", "San Calixto - Norte de Santander", "San Carlos - Antioquia", "San Carlos - Córdoba", "San Carlos de Guaroa - Meta", "San Cayetano - Cundinamarca", "San Cayetano - Norte de Santander", "San Cristóbal - Bolívar", "San Diego - Cesar", "San Eduardo - Boyacá", "San Estanislao - Bolívar", "San Felipe - Guainía", "San Fernando - Bolívar", "San Francisco - Antioquia", "San Francisco - Cundinamarca", "San Francisco - Putumayo", "San Gil - Santander", "San Jacinto - Bolívar", "San Jacinto del Cauca - Bolívar", "San Jerónimo - Antioquia", "San Joaquín - Santander", "San José - Caldas", "San José de La Montaña - Antioquia", "San José de Miranda - Santander", "San José de Pare - Boyacá", "San José de Uré - Córdoba", "San José del Fragua - Caquetá", "San José del Guaviare - Guaviare", "San José del Palmar - Chocó", "San Juan de Arama - Meta", "San Juan de Betulia - Sucre", "San Juan de Río Seco - Cundinamarca", "San Juan de Urabá - Antioquia", "San Juan del Cesar - La Guajira", "San Juan Nepomuceno - Bolívar", "San Juanito - Meta", "San Lorenzo - Nariño", "San Luis - Antioquia", "San Luis - Tolima", "San Luis de Gaceno - Boyacá", "San Luis de Gaceno - Casanare", "San Luis de Sincé - Sucre", "San Marcos - Sucre", "San Martín - Cesar", "San Martín - Meta", "San Martín de Loba - Bolívar", "San Mateo - Boyacá", "San Miguel - Putumayo", "San Miguel - Santander", "San Miguel de Sema - Boyacá", "San Onofre - Sucre", "San Pablo - Nariño", "San Pablo de Borbur - Bolívar", "San Pablo de Borbur - Boyacá", "San Pedro - Antioquia", "San Pedro - Sucre", "San Pedro - Valle del Cauca", "San Pedro de Cartago - Nariño", "San Pedro de Uraba - Antioquia", "San Pelayo - Córdoba", "San Rafael - Antioquia", "San Roque - Antioquia", "San Sebastián - Cauca", "San Sebastián de Buenavista - Magdalena", "San Vicente - Antioquia", "San Vicente de Chucurí - Santander", "San Vicente del Caguán - Caquetá", "San Zenón - Magdalena", "Sandoná - Nariño", "Santa Ana - Magdalena", "Santa Bárbara - Antioquia", "Santa Bárbara - Nariño", "Santa Bárbara - Santander", "Santa Bárbara de Pinto - Magdalena", "Santa Catalina - Bolívar", "Santa Helena del Opón - Santander", "Santa Isabel - Tolima", "Santa Lucía - Atlántico", "Santa María - Boyacá", "Santa María - Huila", "Santa Marta - Magdalena", "Santa Rosa - Bolívar", "Santa Rosa - Cauca", "Santa Rosa de Cabal - Risaralda", "Santa Rosa de Osos - Antioquia", "Santa Rosa de Viterbo - Boyacá", "Santa Rosa del Sur - Bolívar", "Santa Rosalía - Vichada", "Santa Sofía - Boyacá", "Santacruz - Nariño", "Santafé de Antioquia - Antioquia", "Santana - Boyacá", "Santander de Quilichao - Cauca", "Santiago - Norte de Santander", "Santiago - Putumayo", "Santiago de Tolú - Sucre", "Santo Domingo - Antioquia", "Santo Tomás - Atlántico", "Santuario - Risaralda", "Sapuyes - Nariño", "Saravena - Arauca", "Sardinata - Norte de Santander", "Sasaima - Cundinamarca", "Sativanorte - Boyacá", "Sativasur - Boyacá", "Segovia - Antioquia", "Sesquilé - Cundinamarca", "Sevilla - Valle del Cauca", "Siachoque - Boyacá", "Sibaté - Cundinamarca", "Sibundoy - Putumayo", "Silos - Norte de Santander", "Silvania - Cundinamarca", "Silvia - Cauca", "Simacota - Santander", "Simijaca - Cundinamarca", "Simití - Bolívar", "Sincelejo - Sucre", "Sipí - Chocó", "Sitionuevo - Magdalena", "Soacha - Cundinamarca", "Soatá - Boyacá", "Socha - Boyacá", "Socorro - Santander", "Socotá - Boyacá", "Sogamoso - Boyacá", "Solano - Caquetá", "Soledad - Atlántico", "Solita - Caquetá", "Somondoco - Boyacá", "Sonsón - Antioquia", "Sopetrán - Antioquia", "Soplaviento - Bolívar", "Sopó - Cundinamarca", "Sora - Boyacá", "Soracá - Boyacá", "Sotaquirá - Boyacá", "Sotara - Cauca", "Suaita - Santander", "Suan - Atlántico", "Suárez - Cauca", "Suárez - Tolima", "Suaza - Huila", "Subachoque - Cundinamarca", "Sucre - Cauca", "Sucre - Santander", "Sucre - Sucre", "Suesca - Cundinamarca", "Supatá - Cundinamarca", "Supía - Caldas", "Suratá - Santander", "Susa - Cundinamarca", "Susacón - Boyacá", "Sutamarchán - Boyacá", "Sutatausa - Cundinamarca", "Sutatenza - Boyacá", "Tabio - Cundinamarca", "Tadó - Chocó", "Talaigua Nuevo - Bolívar", "Tamalameque - Cesar", "Támara - Casanare", "Tame - Arauca", "Támesis - Antioquia", "Taminango - Nariño", "Tangua - Nariño", "Taraira - Vaupés", "Tarapacá - Amazonas", "Tarazá - Antioquia", "Tarqui - Huila", "Tarso - Antioquia", "Tasco - Boyacá", "Tauramena - Casanare", "Tausa - Cundinamarca", "Tello - Huila", "Tena - Cundinamarca", "Tenerife - Magdalena", "Tenjo - Cundinamarca", "Tenza - Boyacá", "Teorama - Norte de Santander", "Teruel - Huila", "Tesalia - Huila", "Tibacuy - Cundinamarca", "Tibaná - Boyacá", "Tibasosa - Boyacá", "Tibirita - Cundinamarca", "Tibú - Norte de Santander", "Tierralta - Córdoba", "Timaná - Huila", "Timbío - Cauca", "Timbiquí - Cauca", "Tinjacá - Boyacá", "Tipacoque - Boyacá", "Tiquisio - Bolívar", "Titiribí - Antioquia", "Toca - Boyacá", "Tocaima - Cundinamarca", "Tocancipá - Cundinamarca", "Togüí - Boyacá", "Toledo - Antioquia", "Toledo - Norte de Santander", "Tolú Viejo - Sucre", "Tona - Santander", "Tópaga - Boyacá", "Topaipí - Cundinamarca", "Toribio - Cauca", "Toro - Valle del Cauca", "Tota - Boyacá", "Totoró - Cauca", "Trinidad - Casanare", "Trujillo - Valle del Cauca", "Tubará - Atlántico", "Tuchín - Córdoba", "Tuluá - Valle del Cauca", "Tunja - Boyacá", "Tununguá - Boyacá", "Túquerres - Nariño", "Turbaco - Bolívar", "Turbaná - Bolívar", "Turbo - Antioquia", "Turmequé - Boyacá", "Tuta - Boyacá", "Tutazá - Boyacá", "Ubalá - Cundinamarca", "Ubaque - Cundinamarca", "Ulloa - Valle del Cauca", "Umbita - Boyacá", "Une - Cundinamarca", "Unguía - Chocó", "Unión Panamericana - Chocó", "Uramita - Antioquia", "Uribe - Meta", "Uribia - La Guajira", "Urrao - Antioquia", "Urumita - La Guajira", "Usiacurí - Atlántico", "Útica - Cundinamarca", "Valdivia - Antioquia", "Valencia - Córdoba", "Valle de Guamez - Putumayo", "Valle de San José - Santander", "Valle de San Juan - Tolima", "Valledupar - Cesar", "Valparaíso - Antioquia", "Valparaíso - Caquetá", "Vegachí - Antioquia", "Vélez - Santander", "Venadillo - Tolima", "Venecia - Antioquia", "Venecia - Cundinamarca", "Ventaquemada - Boyacá", "Vergara - Cundinamarca", "Versalles - Valle del Cauca", "Vetas - Santander", "Vianí - Cundinamarca", "Victoria - Caldas", "Vigía del Fuerte - Antioquia", "Vijes - Valle del Cauca", "Villa Caro - Norte de Santander", "Villa de Leyva - Boyacá", "Villa de San Diego de Ubate - Cundinamarca", "Villa del Rosario - Norte de Santander", "Villa Rica - Cauca", "Villagarzón - Putumayo", "Villagómez - Cundinamarca", "Villahermosa - Tolima", "Villamaría - Caldas", "Villanueva - Bolívar", "Villanueva - Casanare", "Villanueva - La Guajira", "Villanueva - Santander", "Villapinzón - Cundinamarca", "Villarrica - Tolima", "Villavicencio - Meta", "Villavieja - Huila", "Villeta - Cundinamarca", "Viotá - Cundinamarca", "Viracachá - Boyacá", "Vista Hermosa - Meta", "Viterbo - Caldas", "Yacopí - Cundinamarca", "Yacuanquer - Nariño", "Yaguará - Huila", "Yalí - Antioquia", "Yarumal - Antioquia", "Yavaraté - Vaupés", "Yolombó - Antioquia", "Yondó - Antioquia", "Yopal - Casanare", "Yotoco - Valle del Cauca", "Yumbo - Valle del Cauca", "Zambrano - Bolívar", "Zapatoca - Santander", "Zapayán - Magdalena", "Zaragoza - Antioquia", "Zarzal - Valle del Cauca", "Zetaquira - Boyacá", "Zipacón - Cundinamarca", "Zipaquirá - Cundinamarca", "Zona Bananera - Magdalena"], "mag": [{"n": "Temperatura y/o Humedad ambiental", "req": "Siempre entregar el equipo con su indicador, sonda de medición, interfaz, baterías y cables de conexión según aplique"}, {"n": "Temperatura liquido en vidrio", "req": "Embalar de manera segura el equipo durante el transporte"}, {"n": "Temperatura (Termómetros de contacto en laboratorio)", "req": "Siempre entregar el equipo con su indicador, sonda de medición, interfaz, baterías y cables de conexión según aplique"}, {"n": "Temperatura (Termómetros de contacto en sitio)", "req": "Informar puntos de calibración previo al servicio, el cambio de puntos podrá afectar la programación del servicio por disponibilidad de patrones\nInformar tipo de bulbo, diámetro y longitud del bulbo previo al servicio"}, {"n": "Termómetros Infrarrojos", "req": "Siempre entregar el equipo con su baterías y cables de conexión según aplique"}, {"n": "Masa (Pesas Normalizadas / No Normalizadas)", "req": "Informar el valor nominal por cada pieza en caso de juegos"}, {"n": "Masa (Balanzas y Basculas)", "req": "Informar división de escala y capacidad máxima"}, {"n": "Medios isotérmicos (Cámaras térmicas,  Cuartos fríos, Neveras, Refrigerador ,  Incubadoras,  Estufas de secado, Hornos,  Ultracongeladores)", "req": "Informa resolución del equipo\nInformar volumen útil del medio"}, {"n": "Medios isotérmicos con líquidos (Baños térmicos; Baños térmicos; Baños maría)", "req": "Informar liquido utilizado para cada punto de calibración solicitado\nInformar volumen útil del medio"}, {"n": "Medios isotérmicos (Bloques de pozo seco, termo reactores)", "req": "Informar diámetro y profundidad del bloque, o insertos a calibrar"}, {"n": "Medios isotérmicos (Termoreactores; Digestores)", "req": "Informar numero de orificios, si el cliente requiere mas de dos orificios estos cuentan como servicio adicional.\nInformar numero de compartimentos"}, {"n": "Medios isotérmicos (Autoclaves)", "req": "Se recomienda someter el equipo a mantenimiento preventivo previo para identificar posibles fallas en el controlador"}, {"n": "Medios isotérmicos (Muflas)", "req": "Se recomienda entregar el equipo a condiciones ambientales para iniciar el servicio"}, {"n": "Medios isotérmicos (Termobalanzas o Balanza determinadora de humedad)", "req": "Informar si el servicio requerido es la magnitud de temperatura o en Masa"}, {"n": "Medios Isotérmicos (Planchas o manta de calentamiento)", "req": "Informar numero de puestos que requieren calibración, cada puesto cuenta como un equipo independiente"}, {"n": "Medios en Humedad Relativa (Cámaras climáticas en humedad relativa )", "req": "Informa resolución del equipo\nInformar volumen útil del medio"}, {"n": "Volumen - Equipos operados a pistón", "req": "Suministrar con el equipo las puntas acorde a la resolución del equipo"}, {"n": "Volumen  Equipos de vidrio, metálicos y plásticos", "req": "Se recomienda traer los equipos limpios por bioseguridad"}, {"n": "Presión (Manómetros, manovacuómetros y vacuómetro)", "req": "Informar Tipo de Conexión"}, {"n": "Presión (Diferenciales columna)", "req": "Informar líquido del equipo"}, {"n": "Presión (Manómetros de presión barométrica)", "req": "Siempre deben traer el indicador, interfaz, baterías, cables de conexión y acoples si aplica"}, {"n": "Presión (Esfigmomanómetro)", "req": "Informar Tipo de Conexión"}, {"n": "Potencial de hidrogeno (pH metros digitales)", "req": "Siempre deben traer el indicador y la sonda de medición\nRevisar que el electrodo cuente con solución electrolítica antes del servicio"}, {"n": "Conductividad (Conductímetros)", "req": "Siempre entregar el equipo con su indicador y sonda de medición"}, {"n": "Espectrofotómetro Región UV-Vis y Fotómetros", "req": "Se recomienda realizar limpieza de porta celdas previo al servicio para la correcta ejecución del servicio"}, {"n": "Turbidímetro", "req": "Informar Marca y Modelo de su equipo K45\nEntregar con el equipo la celda para las lecturas"}, {"n": "Medidores de cloro, fotómetros", "req": "Entregar con el equipo 3 Papeletas de reactivo desarrollo de color por cada punto de medición (para cinco puntos 15 papeletas + 3 papeletas para el 0)"}, {"n": "Medidores de oxigeno disuelto (membrana, Luminiscencia), Oxímetros\nDeterminación oxigeno disponible (OD)", "req": "Siempre entregar equipo con indicador y la sonda/electrodo de medición \nPara electrodos de membrana revisar que el electrodo cuente con solución electrolítica antes del servicio"}, {"n": "Pie de rey, micrómetros y comparadores de caratula", "req": "Entregar accesorios con llave ajuste y baterías"}, {"n": "Cintas métricas", "req": "Informar intervalo de medición del equipo"}, {"n": "Hidrómetros o densímetros de inmersión", "req": "Se recomienda realizar limpieza de previo al servicio para la correcta ejecución"}, {"n": "Densímetro digital", "req": "Se recomienda realizar limpieza de previo al servicio para la correcta ejecución"}, {"n": "Salinómetros en cinco (5) Puntos de acorde al intervalo del equipo", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Agitadores", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Centrifugas", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Refractómetros", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Potencial Redox / ORP", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Medidor de Fluoruros", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Floculadores", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Homogeneizador", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Colorímetro en Pt-Co", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "pH en fotómetros", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Determinadores de humedad en materia", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Hierro en fotómetro", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Fusiómetro", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Equipos medidores de corriente y", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}, {"n": "Caudalímetros, flujómetros", "req": "Informar marca y modelo del equipo, el equipo pasara a inspección del laboratorio para aceptación o rechazo del equipo"}], "tipos": ["Calibración acreditada", "Verificación (No Acreditada)", "Calibración (No acreditada)", "Otros Servicios", "Mantenimiento preventivo", "Mantenimiento Correctivo", "Diagnóstico", "Calificación (No Acreditada)", "Calibración subcontratada Acreditada", "Calibración subcontratada No Acreditada", "Calificación instalación (No Acreditada)", "Calificación Operacional (No Acreditada)", "Calificación Desempeño (No Acreditada)"], "orig": ["Manual de Fabricante", "Documento normativo (Adjuntarlo por correo)", "Proceso Interno", "N/A"], "care": ["FILTRO-PARTICULAS FINAS Y GRUESAS", "FILTRO-POLVOS", "FILTRO-VAPORES", "FILTRO-GASES ACIDOS", "FILTRO-VAPORES ORGANICOS Y GASES ACIDOS", "FILTRO-AMONIACO", "FILTRO-FORMALDEHIDO"], "ej": [{"i": "LM", "n": "Luz Montes"}, {"i": "PG", "n": "Paula Guerrero"}, {"i": "DS", "n": "Daniela Segura"}, {"i": "NU", "n": "Natalia Pérez"}, {"i": "JR", "n": "Juan Pablo Rojas"}, {"i": "JB", "n": "Juana Bernal"}, {"i": "CF", "n": "Catalina Fisgativa"}, {"i": "LJ", "n": "Laura Rivera"}, {"i": "CR", "n": "Camilo Roa"}], "lugar": {"EN SITIO (Instalaciones del cliente)": "Para servicios EN SITIO Por favor diligencie el numeral 5 de este formato con la dirección, contacto y requisitos de ingreso a las instalaciones del cliente", "EN LABORATORIO PERMANENTE": "Para Servicios EN LABORATORIO PERMANENTE el(los) equipo(s) deben ser llevados a las instalaciones de Metrological Center S.A.S ubicados en la Calle 73 Bis # 24-14 Bogotá D.C. Colombia"}, "cond": "Las aceptación de las ofertas comerciales incluye la aceptación de las condiciones comerciales para los servicios En Sitio o En Laboratorio Permanente, las cuales se entenderán como aceptadas con el diligenciamiento y entrega de este formato.", "resultados_no": "Los resultados de medición se emiten con la información registrada en el numeral 1.1. / 1.3. / 1.4.  de este formato", "decl": {"si": "El usuario SI requiere Declaración de Conformidad", "no": "El usuario NO requiere Declaración de Conformidad"}};
+// Magnitudes que por regla del formato requieren declaración de conformidad
+const CONF_SI = ["Masa (Pesas Normalizadas / No Normalizadas)","Volumen - Equipos operados a pistón","Volumen  Equipos de vidrio, metálicos y plásticos","Potencial de hidrogeno (pH metros digitales)"];
+const EPP = ["BATA BLANCA/AZUL","BOTAS DE SEGURIDAD","COFIA","TAPABOCAS Y GUANTES","ZAPATONES","CASCO (Informe el color)","GUANTES DE CARNAZA","OVEROL ANTIFLUIDO DESECHABLE","GAFAS DE SEGURIDAD","CARETA","ESCAFANDRA","TAPAOÍDO DESECHABLE","TAPA OÍDOS DE COPA","CHALECO REFLECTIVO","CAMISA MANGALARGA"];
+const LUGARES = Object.keys(CAT.lugar);
+const SITIO = LUGARES[0];
+const SND = ["SI","NO","No determinado"];
+const COLS = [
+  {k:"magnitud",  t:"Magnitud",  al:["magnitud","magnitud o equipo especial"]},
+  {k:"equipo",    t:"Equipo",    al:["equipo","instrumento","equipo o instrumento","equipo o instrumento a intervenir"]},
+  {k:"marca",     t:"Marca",     al:["marca","fabricante"]},
+  {k:"modelo",    t:"Modelo",    al:["modelo","referencia"]},
+  {k:"serie",     t:"Serie",     al:["serie","serial","no serie","numero de serie","n serie","nro serie","s n"]},
+  {k:"id",        t:"ID",        al:["id","codigo","codigo interno","identificacion","id interno"]},
+  {k:"resolucion",t:"Resolución",al:["resolucion","division de escala","division"]},
+  {k:"ubicacion", t:"Ubicación", al:["ubicacion","area","ubicacion area","ubicacion / area"]}
+];
+
+/* ====== UTILIDADES ====== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const MUN_SET = new Set(CAT.mun);
+const MAG_BY_NORM = new Map(CAT.mag.map(m => [norm(m.n), m.n]));
+const reqOf = mag => (CAT.mag.find(m => m.n === mag) || {}).req || "";
+
+// Textos de relleno que NO se aceptan como dato real
+const PH_EXACT = new Set(["na","n a","nd","n d","no","ninguno","ninguna","x","xx","xxx","xxxx","s n","s m","sn","sm","0","00","000","sin","nn","none","null","tbd","idem","igual","otro","otra","varios","varias","generico"].map(norm));
+const PH_CONTAINS = [
+  /\btomar\b/,/\bcapturar\b/,/\bverificar\b/,/\brevisar\b/,/\bconsultar\b/,/\bconfirmar\b/,/\bdefinir\b/,
+  /\bpendiente\b/,/\ben sitio\b/,/\bplaca\b/,/\bdel equipo\b/,/\bdesconocid/,/\bilegible\b/,/\bborrad[oa]\b/,
+  /\bno (tiene|aplica|registra|reporta|visible|legible|se sabe|se|sabe|hay|disponible|identificad\w*)\b/,
+  /\bsin (marca|modelo|serie|serial|dato\w*|informacion|identificacion|referencia|codigo)\b/,
+  /\bver (foto|adjunto|equipo|imagen|etiqueta)\b/,/\bel mismo\b/,/\bmismo que\b/,/\bigual (a|al|que)\b/,/\bal llegar\b/,/\bal recibir\b/
+];
+function placeholderReason(v){
+  const raw = String(v ?? "").trim();
+  if(!raw) return null;
+  if(!/[A-Za-z0-9]/.test(raw)) return "solo contiene símbolos";
+  const n = norm(raw);
+  if(PH_EXACT.has(n)) return "«"+raw+"» no es un dato válido";
+  for(const re of PH_CONTAINS) if(re.test(n)) return "«"+raw+"» no es un dato válido";
+  if(/^(.)\1+$/.test(n.replace(/ /g,""))) return "«"+raw+"» no es un dato válido";
+  return null;
+}
+const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v||"").trim());
+
+/* ====== ESTADO ====== */
+const params = new URLSearchParams(location.search);
+const EJ = (params.get("ej")||"").toUpperCase();
+const EJ_OBJ = CAT.ej.find(e => e.i === EJ);
+const DRAFT_KEY = "pcofo04_borrador_" + EJ;
+let S = blank();
+let step = 0;
+let errs = {};          // errores del paso actual: clave -> mensaje
+let showErr = false;    // mostrar errores solo después de intentar avanzar
+function blank(){
+  return {
+    cliente:{nombre:"",nit:"",direccion:"",ciudad:"Bogotá D.C. - Bogotá D.C.",contacto:"",correo:"",cotizacion:"",orden:"",correo_facturas:""},
+    resultados:{tercero:"",nombre:"",direccion:"",ciudad:""},
+    lugar:"", equipos:[], archivo:"",
+    sitio:{direccion:"",ciudad:"Bogotá D.C. - Bogotá D.C.",contacto:"",telefono:"",horarios:"",epp:[],careta_filtro:"",casco_color:"",otras:"",cursos:"",cursos_detalle:"",vacunas:"",vacunas_detalle:""},
+    notas:"", acepta:false
+  };
+}
+function save(){ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({S,step})); }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(DRAFT_KEY)||"null"); if(d && d.S){ S = Object.assign(blank(), d.S); step = Math.min(d.step||0, 4); return true; } }catch(e){} return false; }
+function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
+
+const STEPS = ["1. Cliente","2. Equipos","3. Servicio por equipo","4. Servicio en sitio","5. Revisar y enviar"];
+const enSitio = () => S.lugar === SITIO;
+
+/* ====== VALIDACIÓN ====== */
+function vCliente(){
+  const e = {}, c = S.cliente, r = S.resultados;
+  if(!c.nombre.trim()) e["cliente.nombre"] = "Obligatorio";
+  const nit = c.nit.replace(/[.\s]/g,"");
+  if(!nit) e["cliente.nit"] = "Obligatorio";
+  else if(!/^\d{5,12}(-\d)?$/.test(nit)) e["cliente.nit"] = "Solo números, con dígito de verificación opcional (ej. 900123456-7)";
+  if(!c.direccion.trim()) e["cliente.direccion"] = "Obligatorio";
+  if(!MUN_SET.has(c.ciudad)) e["cliente.ciudad"] = "Elija una ciudad de la lista";
+  if(!c.contacto.trim()) e["cliente.contacto"] = "Obligatorio";
+  if(!isEmail(c.correo)) e["cliente.correo"] = "Correo no válido";
+  if(!c.cotizacion.trim()) e["cliente.cotizacion"] = "Indique el número de la cotización aceptada";
+  if(!isEmail(c.correo_facturas)) e["cliente.correo_facturas"] = "Correo no válido";
+  if(!r.tercero) e["resultados.tercero"] = "Seleccione una opción";
+  if(r.tercero === "SI"){
+    if(!r.nombre.trim()) e["resultados.nombre"] = "Obligatorio";
+    if(!r.direccion.trim()) e["resultados.direccion"] = "Obligatorio";
+    if(!MUN_SET.has(r.ciudad)) e["resultados.ciudad"] = "Elija una ciudad de la lista";
+  }
+  return e;
+}
+function vEquipoRow(q, i, all){
+  const e = {}, p = "eq."+i+".";
+  if(!CAT.mag.some(m => m.n === q.magnitud)) e[p+"magnitud"] = q.magnitud_original ? "«"+q.magnitud_original+"» no está en la lista. Elija la magnitud" : "Elija la magnitud";
+  for(const k of ["equipo","marca","modelo"]){
+    const v = (q[k]||"").trim();
+    if(!v){ e[p+k] = "Obligatorio"; continue; }
+    const ph = placeholderReason(v);
+    if(ph){ e[p+k] = ph + ". Escriba el dato real de la placa del equipo"; continue; }
+    if(k !== "equipo" && v.replace(/[^A-Za-z0-9]/g,"").length < 2) e[p+k] = "Demasiado corto";
+  }
+  const se = (q.serie||"").trim(), id = (q.id||"").trim();
+  for(const [k,v] of [["serie",se],["id",id]]){
+    const ph = placeholderReason(v);
+    if(ph) e[p+k] = ph + ". Si no existe, deje la celda vacía";
+  }
+  if(!se && !id){ e[p+"serie"] = "Indique la serie o el ID del equipo (al menos uno)"; e[p+"id"] = " "; }
+  const res = (q.resolucion||"").trim();
+  if(!res) e[p+"resolucion"] = "Obligatorio";
+  else if(placeholderReason(res)) e[p+"resolucion"] = placeholderReason(res) + ". Ej.: 0,1 °C · 0,01 g · 1 µL";
+  else if(!/\d/.test(res)) e[p+"resolucion"] = "Debe incluir el valor numérico. Ej.: 0,1 °C";
+  if(enSitio()){
+    const u = (q.ubicacion||"").trim();
+    if(!u) e[p+"ubicacion"] = "Obligatorio para servicios en sitio";
+    else if(placeholderReason(u)) e[p+"ubicacion"] = placeholderReason(u);
+  }
+  if(se){
+    const dup = all.findIndex((o,j) => j < i && norm(o.serie) === norm(se) && o.magnitud === q.magnitud);
+    if(dup >= 0) e[p+"serie"] = "Serie repetida con el equipo "+(dup+1);
+  }
+  return e;
+}
+function vEquipos(){
+  let e = {};
+  if(!S.lugar) e["lugar"] = "Seleccione el lugar de ejecución";
+  if(!S.equipos.length) e["equipos"] = "Cargue el archivo o agregue al menos un equipo";
+  if(S.equipos.length > MAX_ITEMS) e["equipos"] = "Máximo "+MAX_ITEMS+" equipos por solicitud. Divida la solicitud en varias";
+  S.equipos.forEach((q,i) => Object.assign(e, vEquipoRow(q,i,S.equipos)));
+  return e;
+}
+function vDetalle(){
+  const e = {};
+  S.equipos.forEach((q,i) => {
+    const p = "eq."+i+".";
+    if(!CAT.tipos.includes(q.tipo_servicio)) e[p+"tipo_servicio"] = "Seleccione el tipo de servicio";
+    if(!(q.puntos||"").trim()) e[p+"puntos"] = "Indique los puntos o características";
+    else if(placeholderReason(q.puntos)) e[p+"puntos"] = placeholderReason(q.puntos);
+    if(!q.conformidad) e[p+"conformidad"] = "Seleccione";
+    if(q.conformidad === "SI"){
+      if(!(q.emp||"").trim()) e[p+"emp"] = "Indique el EMP o tolerancia";
+      else if(placeholderReason(q.emp)) e[p+"emp"] = placeholderReason(q.emp);
+      if(!CAT.orig.includes(q.origen_emp) || q.origen_emp === "N/A") e[p+"origen_emp"] = "Seleccione el origen del EMP";
+      if(!["Si","No"].includes(q.incertidumbre)) e[p+"incertidumbre"] = "Seleccione";
+    }
+  });
+  return e;
+}
+function vSitio(){
+  const e = {};
+  if(!enSitio()) return e;
+  const s = S.sitio;
+  if(!s.direccion.trim()) e["sitio.direccion"] = "Obligatorio";
+  if(!MUN_SET.has(s.ciudad)) e["sitio.ciudad"] = "Elija una ciudad de la lista";
+  if(!s.contacto.trim()) e["sitio.contacto"] = "Obligatorio";
+  if(s.telefono.replace(/\D/g,"").length < 7) e["sitio.telefono"] = "Teléfono no válido";
+  if(!s.horarios.trim()) e["sitio.horarios"] = "Obligatorio";
+  if(s.epp.includes("CARETA") && !s.careta_filtro) e["sitio.careta_filtro"] = "Seleccione el tipo de filtro";
+  if(s.epp.includes("CASCO (Informe el color)") && !s.casco_color.trim()) e["sitio.casco_color"] = "Indique el color del casco";
+  if(!s.cursos) e["sitio.cursos"] = "Seleccione";
+  if(s.cursos === "SI" && !s.cursos_detalle.trim()) e["sitio.cursos_detalle"] = "Especifique modalidad y duración";
+  if(!s.vacunas) e["sitio.vacunas"] = "Seleccione";
+  if(s.vacunas === "SI" && !s.vacunas_detalle.trim()) e["sitio.vacunas_detalle"] = "Especifique la vacuna y los días de anterioridad";
+  return e;
+}
+function vFinal(){ return S.acepta ? {} : {"acepta":"Debe aceptar las condiciones comerciales para continuar"}; }
+const VALID = [vCliente, vEquipos, vDetalle, vSitio, vFinal];
+
+/* ====== CAMPOS ====== */
+function get(path){ return path.split(".").reduce((o,k)=>o?.[k], S); }
+function set(path, val){
+  const ks = path.split("."); let o = S;
+  for(let i=0;i<ks.length-1;i++) o = o[ks[i]];
+  o[ks[ks.length-1]] = val;
+}
+function errHtml(key){ return showErr && errs[key] && errs[key].trim() ? `<span class="msg">${esc(errs[key])}</span>` : ""; }
+function bad(key){ return showErr && errs[key] ? " bad" : ""; }
+function inp(path, label, opt={}){
+  const v = get(path) ?? "";
+  const type = opt.type || "text";
+  const list = opt.list ? ` list="${opt.list}"` : "";
+  const ph = opt.ph ? ` placeholder="${esc(opt.ph)}"` : "";
+  const ctl = opt.area
+    ? `<textarea data-p="${path}" class="${bad(path)}"${ph}>${esc(v)}</textarea>`
+    : `<input type="${type}" data-p="${path}" value="${esc(v)}" class="${bad(path)}"${list}${ph} autocomplete="off">`;
+  return `<div class="f"><label>${esc(label)}${opt.req?' <span class="req">*</span>':""}</label>${ctl}${opt.hint?`<span class="hint">${esc(opt.hint)}</span>`:""}${errHtml(path)}</div>`;
+}
+function sel(path, label, options, opt={}){
+  const v = get(path) ?? "";
+  const o = [`<option value="">— Seleccione —</option>`].concat(options.map(x => `<option${x===v?" selected":""}>${esc(x)}</option>`)).join("");
+  return `<div class="f"><label>${esc(label)}${opt.req?' <span class="req">*</span>':""}</label><select data-p="${path}" class="${bad(path)}">${o}</select>${opt.hint?`<span class="hint">${esc(opt.hint)}</span>`:""}${errHtml(path)}</div>`;
+}
+function radios(path, label, options, opt={}){
+  const v = get(path);
+  const r = options.map(x => `<label class="${x===v?"sel":""}"><input type="radio" name="${path}" data-p="${path}" value="${esc(x)}"${x===v?" checked":""}> ${esc(x)}</label>`).join("");
+  return `<div class="f"><label>${esc(label)}${opt.req?' <span class="req">*</span>':""}</label><div class="radios">${r}</div>${errHtml(path)}</div>`;
+}
+
+/* ====== VISTAS ====== */
+function render(){
+  if(!EJ_OBJ){ renderComercial(); return; }
+  errs = showErr ? VALID[step]() : {};
+  const stepsHtml = STEPS.map((t,i) => {
+    const skip = i === 3 && S.lugar && !enSitio();
+    return `<div class="${i===step?"on":i<step?"done":""}">${esc(t)}${skip?" (no aplica)":""}</div>`;
+  }).join("");
+  const views = [vwCliente, vwEquipos, vwDetalle, vwSitio, vwFinal];
+  $("#app").innerHTML = `<div class="steps">${stepsHtml}</div>${views[step]()}`;
+  bind();
+}
+function errorBanner(){
+  const n = Object.keys(errs).filter(k => errs[k].trim()).length;
+  return showErr && n ? `<div class="note err">Hay ${n} campo(s) por corregir, marcados en rojo.</div>` : "";
+}
+function navHtml(nextLabel="Siguiente"){
+  return `<div class="nav"><div>${step>0?'<button class="btn sec" data-a="prev">← Anterior</button>':""}</div>
+  <div style="display:flex;gap:8px"><button class="btn sec small" data-a="reset" title="Borrar todo lo diligenciado">Empezar de nuevo</button>
+  <button class="btn" data-a="next">${esc(nextLabel)}</button></div></div>`;
+}
+function vwCliente(){
+  const t = S.resultados.tercero;
+  return `${errorBanner()}
+  <div class="card"><h2>1. Datos del cliente</h2>
+  <p class="lead">Atiende su solicitud: <b>${esc(EJ_OBJ.n)}</b>. Los campos con <span style="color:var(--err)">*</span> son obligatorios.</p>
+  <div class="grid">
+    ${inp("cliente.nombre","1.1 Nombre / Razón social",{req:1})}
+    ${inp("cliente.nit","1.2 NIT / Identificación",{req:1,ph:"900123456-7"})}
+    ${inp("cliente.direccion","1.3 Dirección completa",{req:1})}
+    ${inp("cliente.ciudad","1.4 Ciudad y departamento",{req:1,list:"mun",hint:"Escriba y elija de la lista"})}
+    ${inp("cliente.contacto","1.5 Persona de contacto",{req:1})}
+    ${inp("cliente.correo","1.6 Correo electrónico",{req:1,type:"email"})}
+    ${inp("cliente.cotizacion","1.7 Cotización aceptada (número)",{req:1})}
+    ${inp("cliente.orden","1.8 Orden de compra / Contrato")}
+    ${inp("cliente.correo_facturas","1.9 Correo para facturas electrónicas",{req:1,type:"email"})}
+  </div></div>
+  <div class="card"><h2>2. Datos para la emisión de resultados</h2>
+    ${radios("resultados.tercero","¿Los resultados se emiten a nombre de un tercero?",SND,{req:1})}
+    ${t==="NO"?`<div class="note">${esc(CAT.resultados_no)}</div>`:""}
+    ${t==="SI"?`<div class="grid" style="margin-top:12px">
+      ${inp("resultados.nombre","2.1 Nombre / Razón social",{req:1})}
+      ${inp("resultados.direccion","2.2 Dirección completa",{req:1})}
+      ${inp("resultados.ciudad","2.3 Ciudad y departamento",{req:1,list:"mun"})}</div>`:""}
+  </div>${navHtml()}`;
+}
+function vwEquipos(){
+  const n = S.equipos.length;
+  const rowErrs = showErr ? Object.entries(errs).filter(([k,v]) => k.startsWith("eq.") && v.trim()) : [];
+  const listErr = rowErrs.slice(0,60).map(([k,v]) => {
+    const [,i,c] = k.split("."); const col = COLS.find(x=>x.k===c);
+    return `<li>Equipo ${+i+1} · ${esc(col?col.t:c)}: ${esc(v)}</li>`;
+  }).join("");
+  return `${errorBanner()}
+  <div class="card"><h2>3. Lugar de ejecución del servicio</h2>
+    ${radios("lugar","Seleccione dónde se realizará el servicio",LUGARES,{req:1})}
+    ${S.lugar?`<div class="note">${esc(CAT.lugar[S.lugar])}</div>`:""}
+  </div>
+  <div class="card"><h2>Equipos e instrumentos a intervenir</h2>
+    <p class="lead">Suba el archivo con los datos básicos de sus equipos (una fila por equipo, máximo ${MAX_ITEMS}). Metrological Center S.A.S. se reserva el derecho de aceptar o rechazar un equipo para intervención.</p>
+    <div class="note warn"><b>Marca, modelo y serie deben copiarse de la placa del equipo.</b> No se aceptan textos como «tomar del equipo», «capturar en sitio», «ver placa», «N/A» o «por definir». Si el equipo no tiene serie, deje la celda vacía y escriba el ID interno.</div>
+    <div class="drop" id="drop">
+      <p style="margin:0 0 10px"><b>Arrastre aquí su archivo</b> (.xlsx, .xls o .csv) o</p>
+      <button class="btn" data-a="pick">Seleccionar archivo</button>
+      <button class="btn sec" data-a="tpl">Descargar plantilla</button>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv,.txt" class="hidden">
+      ${S.archivo?`<p class="hint" style="margin:10px 0 0">Archivo cargado: ${esc(S.archivo)}</p>`:""}
+    </div>
+    <div id="loadmsg"></div>
+    ${showErr && errs["equipos"]?`<div class="note err">${esc(errs["equipos"])}</div>`:""}
+    ${n?`<div class="note ${rowErrs.length?"err":"ok"}" style="margin-top:12px">${n} equipo(s). ${rowErrs.length?`Corrija los datos marcados directamente en la tabla:<ul class="errlist">${listErr}</ul>`:"Todos los datos básicos son válidos."}</div>`:""}
+    ${n?tableHtml():""}
+    <div style="margin-top:10px"><button class="btn sec small" data-a="addrow"${n>=MAX_ITEMS?" disabled":""}>+ Agregar equipo manualmente</button></div>
+  </div>${navHtml()}`;
+}
+function tableHtml(){
+  const head = `<tr><th>#</th>${COLS.map(c=>`<th>${esc(c.t)}${["magnitud","equipo","marca","modelo","resolucion"].includes(c.k)||(c.k==="ubicacion"&&enSitio())?" *":""}</th>`).join("")}<th></th></tr>`;
+  const rows = S.equipos.map((q,i) => {
+    const cells = COLS.map(c => {
+      const key = "eq."+i+"."+c.k;
+      if(c.k === "magnitud"){
+        const o = [`<option value="">— Seleccione —</option>`].concat(CAT.mag.map(m=>`<option${m.n===q.magnitud?" selected":""}>${esc(m.n)}</option>`)).join("");
+        return `<td style="min-width:230px"><select data-p="equipos.${i}.magnitud" class="${bad(key)}">${o}</select>${errHtml(key)}</td>`;
+      }
+      return `<td style="min-width:${c.k==="equipo"?170:110}px"><input type="text" data-p="equipos.${i}.${c.k}" value="${esc(q[c.k])}" class="${bad(key)}">${errHtml(key)}</td>`;
+    }).join("");
+    return `<tr><td class="n">${i+1}</td>${cells}<td><button class="btn sec small" data-a="delrow" data-i="${i}" title="Quitar equipo">✕</button></td></tr>`;
+  }).join("");
+  return `<div class="tblwrap"><table>${head}${rows}</table></div>`;
+}
+function vwDetalle(){
+  const cards = S.equipos.map((q,i) => {
+    const p = "equipos."+i+".";
+    const req = reqOf(q.magnitud);
+    const ek = k => "eq."+i+"."+k;
+    const s = (k,label,opts,o={}) => {
+      const v = q[k]||"";
+      const op = [`<option value="">— Seleccione —</option>`].concat(opts.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`)).join("");
+      return `<div class="f"><label>${esc(label)}${o.req?' <span class="req">*</span>':""}</label><select data-p="${p+k}" class="${bad(ek(k))}">${op}</select>${errHtml(ek(k))}</div>`;
+    };
+    const t = (k,label,o={}) => `<div class="f"><label>${esc(label)}${o.req?' <span class="req">*</span>':""}</label><input type="text" data-p="${p+k}" value="${esc(q[k])}" class="${bad(ek(k))}"${o.ph?` placeholder="${esc(o.ph)}"`:""}>${errHtml(ek(k))}</div>`;
+    const conf = q.conformidad === "SI";
+    return `<div class="item"><h3>Equipo ${i+1}: ${esc(q.equipo)}</h3>
+      <div class="sub">${esc(q.magnitud)} · ${esc(q.marca)} ${esc(q.modelo)}${q.serie?" · S/N "+esc(q.serie):""}${q.id?" · ID "+esc(q.id):""}</div>
+      ${req?`<div class="req-box"><b>Requisito para el servicio:</b> ${esc(req)}</div>`:""}
+      <div class="grid">
+        ${s("tipo_servicio","Tipo de servicio",CAT.tipos,{req:1})}
+        ${t("puntos","Puntos de medición o características del servicio",{req:1,ph:"Ej.: 20 °C, 50 °C, 100 °C"})}
+        ${s("conformidad","¿Requiere declaración de conformidad?",["SI","NO"],{req:1})}
+        ${conf?t("emp","EMP / Tolerancia",{req:1,ph:"Ej.: ±0,5 °C"}):""}
+        ${conf?s("origen_emp","Origen del EMP",CAT.orig.filter(x=>x!=="N/A"),{req:1}):""}
+        ${conf?s("incertidumbre","¿Considerar la incertidumbre en la declaración?",["Si","No"],{req:1}):""}
+      </div>
+      ${conf && q.origen_emp===CAT.orig[1]?`<div class="note warn">Envíe el documento normativo por correo a ${esc(EJ_OBJ.n)}.</div>`:""}
+      ${i>0?`<div style="margin-top:8px"><button class="btn sec small" data-a="copyprev" data-i="${i}">Copiar respuestas del equipo ${i}</button></div>`:""}
+    </div>`;
+  }).join("");
+  const bulkOpts = [`<option value="">— Seleccione —</option>`].concat(CAT.tipos.map(x=>`<option>${esc(x)}</option>`)).join("");
+  return `${errorBanner()}
+  <div class="card"><h2>3.3 Evaluación solicitada por equipo</h2>
+  <p class="lead">Complete el servicio que necesita para cada equipo. La declaración de conformidad viene sugerida según la magnitud; puede cambiarla.</p>
+  ${S.equipos.length>1?`<div class="toolbar"><div class="f"><label>Aplicar el mismo tipo de servicio a todos</label><select id="bulk">${bulkOpts}</select></div><button class="btn sec" data-a="bulk">Aplicar a todos</button></div>`:""}
+  ${cards}</div>${navHtml()}`;
+}
+function vwSitio(){
+  if(!enSitio()){
+    return `<div class="card"><h2>5. Datos para servicio en sitio</h2><div class="note">No aplica: el servicio se realizará en el laboratorio permanente.</div>
+    ${inp("notas","Notas / Observaciones generales (opcional)",{area:1})}</div>${navHtml()}`;
+  }
+  const s = S.sitio;
+  const epp = EPP.map(x => `<label><input type="checkbox" data-epp="${esc(x)}"${s.epp.includes(x)?" checked":""}> ${esc(x)}</label>`).join("");
+  return `${errorBanner()}
+  <div class="card"><h2>5. Datos para programación del servicio en sitio</h2>
+  <p class="lead">Detalle cualquier requisito para el ingreso de nuestro personal a sus instalaciones.</p>
+  <div style="margin-bottom:10px"><button class="btn sec small" data-a="samedir">Usar la dirección y contacto del numeral 1</button></div>
+  <div class="grid">
+    ${inp("sitio.direccion","5.1 Dirección del servicio",{req:1})}
+    ${inp("sitio.ciudad","5.2 Ciudad y departamento",{req:1,list:"mun"})}
+    ${inp("sitio.contacto","5.3 Persona de contacto",{req:1})}
+    ${inp("sitio.telefono","5.4 Teléfono",{req:1,type:"tel"})}
+    ${inp("sitio.horarios","5.5 Horarios de ingreso y salida",{req:1,ph:"Ej.: L-V 7:00 a.m. – 4:00 p.m."})}
+  </div>
+  <div class="f" style="margin-top:14px"><label>5.6 EPP o dotación especial para el ingreso</label><div class="epp">${epp}</div></div>
+  <div class="grid" style="margin-top:10px">
+    ${s.epp.includes("CARETA")?sel("sitio.careta_filtro","Tipo de filtro de la careta",CAT.care,{req:1}):""}
+    ${s.epp.includes("CASCO (Informe el color)")?inp("sitio.casco_color","Color del casco",{req:1}):""}
+  </div>
+  <div class="grid" style="margin-top:10px">
+    <div>${radios("sitio.cursos","5.8 ¿Requiere curso(s) o inducción para el ingreso?",SND,{req:1})}
+    ${s.cursos==="SI"?inp("sitio.cursos_detalle","5.8.1 Especifique modalidad y duración",{req:1}):""}</div>
+    <div>${radios("sitio.vacunas","5.9 ¿Requiere vacunas para el ingreso?",SND,{req:1})}
+    ${s.vacunas==="SI"?inp("sitio.vacunas_detalle","5.9.1 Vacuna solicitada y días de anterioridad",{req:1}):""}</div>
+  </div>
+  <div style="margin-top:10px">${inp("sitio.otras","5.7 Otras observaciones del servicio",{area:1})}</div>
+  <div style="margin-top:10px">${inp("notas","Notas / Observaciones generales",{area:1})}</div>
+  </div>${navHtml()}`;
+}
+function vwFinal(){
+  const c = S.cliente, r = S.resultados;
+  const eqRows = S.equipos.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.magnitud)}</td><td>${esc(q.equipo)}</td><td>${esc(q.marca)}</td><td>${esc(q.modelo)}</td><td>${esc(q.serie)}</td><td>${esc(q.id)}</td><td>${esc(q.tipo_servicio)}</td><td>${esc(q.conformidad)}</td></tr>`).join("");
+  const s = S.sitio;
+  const cfgOk = /^https:\/\//.test(FILE_REQUEST_URL);
+  return `${errorBanner()}
+  <div class="card"><h2>Revise su solicitud</h2>
+  <div class="grid sum">
+    <dl><dt>Cliente</dt><dd>${esc(c.nombre)} · NIT ${esc(c.nit)}</dd><dt>Dirección</dt><dd>${esc(c.direccion)}, ${esc(c.ciudad)}</dd>
+    <dt>Contacto</dt><dd>${esc(c.contacto)} · ${esc(c.correo)}</dd></dl>
+    <dl><dt>Cotización</dt><dd>${esc(c.cotizacion)}${c.orden?" · OC "+esc(c.orden):""}</dd><dt>Facturas</dt><dd>${esc(c.correo_facturas)}</dd>
+    <dt>Resultados a nombre de tercero</dt><dd>${esc(r.tercero)}${r.tercero==="SI"?": "+esc(r.nombre):""}</dd></dl>
+    <dl><dt>Lugar</dt><dd>${esc(S.lugar)}</dd>${enSitio()?`<dt>Sitio</dt><dd>${esc(s.direccion)}, ${esc(s.ciudad)} · ${esc(s.contacto)} ${esc(s.telefono)}</dd><dt>EPP</dt><dd>${esc(s.epp.join(", ")||"Ninguno")}</dd>`:""}</dl>
+  </div>
+  <div class="tblwrap"><table><tr><th>#</th><th>Magnitud</th><th>Equipo</th><th>Marca</th><th>Modelo</th><th>Serie</th><th>ID</th><th>Servicio</th><th>Conformidad</th></tr>${eqRows}</table></div>
+  </div>
+  <div class="card"><h2>4. Requisitos para la prestación del servicio</h2>
+    <p>${esc(CAT.cond)}</p>
+    <p class="hint">Consulte: <a href="https://drive.google.com/file/d/1L2RaJZ5a_KobmX7wo14bx1CVCz-qriSq/view?usp=share_link" target="_blank" rel="noopener">PTC-PO-07 Declaración de conformidad</a> · <a href="https://drive.google.com/file/d/17bAyain95wcDwugG2cMkVk4cHgST22Pk/view?usp=share_link" target="_blank" rel="noopener">A-PCO-PO01-01 Anexo A Condiciones comerciales</a></p>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" data-p="acepta"${S.acepta?" checked":""}> Acepto las condiciones comerciales</label>${errHtml("acepta")}
+  </div>
+  <div class="card noprint" id="envio"><h2>Enviar la solicitud</h2>
+    <p class="lead">El envío tiene dos pasos: primero descargue el archivo de su solicitud y luego súbalo con el botón azul.</p>
+    ${cfgOk?"":`<div class="note err">Configuración pendiente: falta el enlace de carga de OneDrive (FILE_REQUEST_URL).</div>`}
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn gold" data-a="gen">① Descargar archivo de solicitud</button>
+      <button class="btn" data-a="upload" ${S._generado?"":"disabled"}>② Subir archivo a Metrological Center</button>
+      <button class="btn sec" data-a="print">Imprimir / guardar copia</button>
+    </div>
+    ${S._generado?`<div class="note ok">Archivo generado: <b>${esc(S._generado)}</b>. Ahora pulse «② Subir archivo», elija ese archivo (está en su carpeta de Descargas) y confirme la carga. ${esc(EJ_OBJ.n)} recibirá su solicitud automáticamente.</div>`:""}
+  </div>
+  <div class="nav"><div><button class="btn sec" data-a="prev">← Anterior</button></div><div></div></div>`;
+}
+function renderComercial(){
+  const bad = EJ && !EJ_OBJ;
+  const o = CAT.ej.map(e=>`<option value="${e.i}">${esc(e.n)} (${e.i})</option>`).join("");
+  $("#app").innerHTML = `<div class="card"><h2>Generar enlace para el cliente</h2>
+    ${bad?`<div class="note err">El enlace usado no es válido (código «${esc(EJ)}»). Solicite un enlace nuevo a su ejecutiva comercial.</div>`:""}
+    <p class="lead">Uso interno del área comercial. Elija su nombre, copie el enlace y envíelo al cliente. Las solicitudes que lleguen con ese enlace se le notificarán a usted.</p>
+    <div class="grid"><div class="f"><label>Ejecutiva comercial</label><select id="ejsel"><option value="">— Seleccione —</option>${o}</select></div></div>
+    <div id="ejout" style="margin-top:12px"></div></div>`;
+  $("#ejsel").onchange = ev => {
+    const v = ev.target.value; if(!v){ $("#ejout").innerHTML=""; return; }
+    const url = location.origin + location.pathname + "?ej=" + v;
+    $("#ejout").innerHTML = `<div class="link" id="lnk">${esc(url)}</div><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="cp">Copiar enlace</button><a class="btn sec" href="${esc(url)}" target="_blank" style="text-decoration:none">Abrir como cliente</a></div>
+      ${location.protocol==="file:"?'<div class="note warn">Está abriendo la página desde su equipo. Publíquela en GitHub Pages para obtener un enlace que funcione para el cliente.</div>':""}`;
+    $("#cp").onclick = () => { navigator.clipboard?.writeText(url).then(()=>{$("#cp").textContent="¡Copiado!";}).catch(()=>{}); };
+  };
+}
+
+/* ====== EVENTOS ====== */
+function bind(){
+  document.querySelectorAll("[data-p]").forEach(el => {
+    const ev = (el.tagName === "SELECT" || el.type === "radio" || el.type === "checkbox") ? "change" : "input";
+    el.addEventListener(ev, () => {
+      const path = el.dataset.p;
+      const val = el.type === "checkbox" ? el.checked : el.value;
+      set(path, val);
+      if(path.endsWith(".magnitud")){ const i = +path.split(".")[1]; delete S.equipos[i].magnitud_original; S.equipos[i].conformidad = confDefault(val); }
+      save();
+      // re-render solo cuando cambia la estructura (selects/radios) para no perder el foco al escribir
+      if(ev === "change") render();
+      else if(showErr) softValidate(el, path);
+    });
+  });
+  document.querySelectorAll("[data-epp]").forEach(el => el.addEventListener("change", () => {
+    const x = el.dataset.epp; const a = S.sitio.epp;
+    if(el.checked){ if(!a.includes(x)) a.push(x); } else S.sitio.epp = a.filter(y=>y!==x);
+    save(); render();
+  }));
+  document.querySelectorAll("[data-a]").forEach(el => el.addEventListener("click", () => act(el.dataset.a, el)));
+  const drop = $("#drop");
+  if(drop){
+    $("#file").addEventListener("change", e => { if(e.target.files[0]) readFile(e.target.files[0]); });
+    ["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+    ["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+    drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) readFile(f); });
+  }
+}
+// Al escribir: actualiza el marcado de error del campo sin redibujar toda la vista
+function softValidate(el, path){
+  errs = VALID[step]();
+  const key = path.startsWith("equipos.") ? "eq."+path.split(".").slice(1).join(".") : path;
+  const m = errs[key];
+  el.classList.toggle("bad", !!m);
+  let span = el.parentElement.querySelector(".msg");
+  if(m && m.trim()){ if(!span){ span = document.createElement("span"); span.className = "msg"; el.parentElement.appendChild(span); } span.textContent = m; }
+  else if(span) span.remove();
+}
+function confDefault(mag){ return CONF_SI.includes(mag) ? "SI" : "NO"; }
+function act(a, el){
+  if(a === "next"){
+    errs = VALID[step]();
+    if(Object.keys(errs).length){ showErr = true; render(); const f = document.querySelector(".bad"); if(f){ f.scrollIntoView({behavior:"smooth",block:"center"}); } else window.scrollTo({top:0,behavior:"smooth"}); return; }
+    showErr = false; step++; save(); render(); window.scrollTo(0,0); return;
+  }
+  if(a === "prev"){ showErr = false; step--; save(); render(); window.scrollTo(0,0); return; }
+  if(a === "reset"){ if(confirm("¿Borrar todo lo diligenciado y empezar de nuevo?")){ clearDraft(); S = blank(); step = 0; showErr = false; render(); } return; }
+  if(a === "pick"){ $("#file").click(); return; }
+  if(a === "tpl"){ downloadTemplate(); return; }
+  if(a === "addrow"){ S.equipos.push(newItem({})); save(); render(); return; }
+  if(a === "delrow"){ S.equipos.splice(+el.dataset.i,1); save(); render(); return; }
+  if(a === "bulk"){ const v = $("#bulk").value; if(v){ S.equipos.forEach(q=>q.tipo_servicio=v); save(); render(); } return; }
+  if(a === "copyprev"){ const i = +el.dataset.i, p = S.equipos[i-1], q = S.equipos[i]; for(const k of ["tipo_servicio","puntos","conformidad","emp","origen_emp","incertidumbre"]) q[k] = p[k]; save(); render(); return; }
+  if(a === "samedir"){ Object.assign(S.sitio,{direccion:S.cliente.direccion,ciudad:S.cliente.ciudad,contacto:S.cliente.contacto}); save(); render(); return; }
+  if(a === "gen"){
+    errs = VALID.reduce((o,f)=>Object.assign(o,f()),{});
+    if(Object.keys(errs).length){ showErr = true; render(); if(!S.acepta) return; alert("Hay datos pendientes en pasos anteriores. Revíselos antes de enviar."); return; }
+    generate(); return;
+  }
+  if(a === "upload"){ if(/^https:\/\//.test(FILE_REQUEST_URL)) window.open(FILE_REQUEST_URL,"_blank","noopener"); else alert("El enlace de carga no está configurado. Comuníquese con su ejecutiva comercial."); return; }
+  if(a === "print"){ window.print(); return; }
+}
+function newItem(o){
+  const it = {magnitud:"",equipo:"",marca:"",modelo:"",serie:"",id:"",resolucion:"",ubicacion:"",tipo_servicio:"",puntos:"",conformidad:"",emp:"",origen_emp:"",incertidumbre:""};
+  for(const c of COLS) it[c.k] = String(o[c.k] ?? "").trim();
+  const m = matchMag(it.magnitud);
+  if(m) it.magnitud = m; else if(it.magnitud){ it.magnitud_original = it.magnitud; it.magnitud = ""; }
+  it.conformidad = it.magnitud ? confDefault(it.magnitud) : "";
+  return it;
+}
+function matchMag(v){
+  const n = norm(v); if(!n) return "";
+  if(MAG_BY_NORM.has(n)) return MAG_BY_NORM.get(n);
+  const hits = CAT.mag.filter(m => { const mn = norm(m.n); return mn.startsWith(n) || (n.length >= 6 && mn.includes(n)); });
+  return hits.length === 1 ? hits[0].n : "";
+}
+
+/* ====== ARCHIVOS ====== */
+function decodeText(buf){
+  try{ return new TextDecoder("utf-8",{fatal:true}).decode(buf); }catch(e){ return new TextDecoder("windows-1252").decode(buf); }
+}
+function readFile(f){
+  const msg = $("#loadmsg");
+  if(typeof XLSX === "undefined"){ msg.innerHTML = `<div class="note err">No se pudo cargar el lector de archivos. Revise su conexión a internet y recargue la página.</div>`; return; }
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{
+      let wb;
+      if(/\.(csv|txt)$/i.test(f.name)){
+        const txt = decodeText(new Uint8Array(rd.result)).replace(/^﻿/,"");
+        const first = txt.split(/\r?\n/)[0] || "";
+        const fs = (first.split(";").length > first.split(",").length) ? ";" : (first.includes("\t") ? "\t" : ",");
+        wb = XLSX.read(txt, {type:"string", FS:fs, raw:true});
+      } else {
+        wb = XLSX.read(rd.result, {type:"array"});
+      }
+      const ws = wb.Sheets["Equipos"] || wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:"", raw:false, blankrows:false});
+      importRows(rows, f.name);
+    }catch(e){ msg.innerHTML = `<div class="note err">No se pudo leer el archivo: ${esc(e.message)}</div>`; }
+  };
+  rd.readAsArrayBuffer(f);
+}
+function importRows(rows, name){
+  const msg = $("#loadmsg");
+  // busca la fila de encabezados entre las primeras 10
+  let hi = -1, map = null;
+  for(let r=0; r<Math.min(10, rows.length); r++){
+    const m = {}; rows[r].forEach((h,ci) => { const n = norm(h); const c = COLS.find(c => c.al.includes(n)); if(c && m[c.k] === undefined) m[c.k] = ci; });
+    if(m.marca !== undefined && m.modelo !== undefined){ hi = r; map = m; break; }
+  }
+  if(hi < 0){ msg.innerHTML = `<div class="note err">No se encontraron los encabezados. El archivo debe tener las columnas: ${COLS.map(c=>c.t).join(", ")}. Use «Descargar plantilla».</div>`; return; }
+  const missing = COLS.filter(c => map[c.k] === undefined && c.k !== "ubicacion" && c.k !== "id");
+  const data = rows.slice(hi+1)
+    .map(r => { const o = {}; COLS.forEach(c => { o[c.k] = map[c.k] !== undefined ? r[map[c.k]] : ""; }); return o; })
+    .filter(o => COLS.some(c => String(o[c.k]).trim()));
+  if(!data.length){ msg.innerHTML = `<div class="note err">El archivo no tiene filas con datos debajo de los encabezados.</div>`; return; }
+  if(data.length > MAX_ITEMS){ msg.innerHTML = `<div class="note err">El archivo tiene ${data.length} equipos; el máximo por solicitud es ${MAX_ITEMS}. Divídalo en varias solicitudes.</div>`; return; }
+  if(S.equipos.length && !confirm(`Ya hay ${S.equipos.length} equipo(s) en la tabla. ¿Reemplazarlos por los ${data.length} del archivo?`)) return;
+  S.equipos = data.map(newItem); S.archivo = name; showErr = true; save(); render();
+  if(missing.length) $("#loadmsg").innerHTML = `<div class="note warn">Columnas no encontradas en el archivo: ${missing.map(c=>c.t).join(", ")}. Complételas en la tabla.</div>`;
+}
+function downloadTemplate(){
+  if(typeof XLSX === "undefined"){ alert("Revise su conexión a internet y recargue la página."); return; }
+  const wb = XLSX.utils.book_new();
+  const eq = XLSX.utils.aoa_to_sheet([COLS.map(c=>c.t)]);
+  eq["!cols"] = COLS.map(c=>({wch: c.k==="magnitud"?45:18}));
+  XLSX.utils.book_append_sheet(wb, eq, "Equipos");
+  const ins = XLSX.utils.aoa_to_sheet([
+    ["Instrucciones"],
+    ["1. Diligencie una fila por equipo en la hoja «Equipos» (máximo "+MAX_ITEMS+")."],
+    ["2. Magnitud: copie exactamente un valor de la hoja «Magnitudes»."],
+    ["3. Marca, Modelo y Serie: copie el dato de la placa del equipo. No escriba «tomar del equipo», «capturar en sitio», «N/A», etc."],
+    ["4. Si el equipo no tiene serie, deje la celda vacía y escriba el ID interno."],
+    ["5. Resolución: valor con unidad, por ejemplo 0,1 °C · 0,01 g · 1 µL."],
+    ["6. Ubicación: obligatoria si el servicio es en sus instalaciones."],
+    [],
+    ["Ejemplo (no lo copie en la hoja Equipos):"],
+    COLS.map(c=>c.t),
+    ["Potencial de hidrogeno (pH metros digitales)","pH metro de mesa","Hanna","HI2211","A0123456","LAB-PH-01","0,01 pH","Laboratorio fisicoquímico"]
+  ]);
+  ins["!cols"] = [{wch:60},{wch:18},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:24}];
+  XLSX.utils.book_append_sheet(wb, ins, "Instrucciones");
+  const mg = XLSX.utils.aoa_to_sheet([["Magnitudes válidas"]].concat(CAT.mag.map(m=>[m.n])));
+  mg["!cols"] = [{wch:75}];
+  XLSX.utils.book_append_sheet(wb, mg, "Magnitudes");
+  XLSX.writeFile(wb, "Plantilla_equipos_PCO-FO-04.xlsx");
+}
+function generate(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2,"0");
+  const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+  const nit = S.cliente.nit.replace(/[^\d-]/g,"");
+  const fname = `SOL_${EJ}_${nit}_${stamp}.json`;
+  const out = {
+    formato:"PCO-FO-04", origen:"solicitud-web", version_app:APP_VERSION,
+    fecha_diligenciamiento: now.toISOString(),
+    fecha_local: `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    ejecutiva:{iniciales:EJ, nombre:EJ_OBJ.n},
+    cliente:S.cliente, resultados:S.resultados, lugar:S.lugar,
+    equipos:S.equipos.map((q,i)=>({item:i+1, magnitud:q.magnitud, equipo:q.equipo, marca:q.marca, modelo:q.modelo, serie:q.serie, id:q.id,
+      resolucion:q.resolucion, ubicacion:q.ubicacion, requisitos:reqOf(q.magnitud), tipo_servicio:q.tipo_servicio, puntos:q.puntos,
+      declaracion_conformidad: q.conformidad==="SI" ? CAT.decl.si : CAT.decl.no,
+      emp: q.conformidad==="SI" ? q.emp : "", origen_emp: q.conformidad==="SI" ? q.origen_emp : "N/A",
+      incertidumbre: q.conformidad==="SI" ? q.incertidumbre : ""})),
+    sitio: enSitio() ? S.sitio : null,
+    notas:S.notas, acepta_condiciones:S.acepta
+  };
+  const blob = new Blob([JSON.stringify(out,null,2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  S._generado = fname; save(); render();
+  document.getElementById("envio")?.scrollIntoView({behavior:"smooth"});
+}
+
+/* ====== INICIO ====== */
+(function init(){
+  const dl = document.createElement("datalist"); dl.id = "mun";
+  dl.innerHTML = CAT.mun.map(m=>`<option value="${esc(m)}">`).join("");
+  document.body.appendChild(dl);
+  if(EJ_OBJ) load();
+  render();
+})();
+</script>
+</body>
+</html>
