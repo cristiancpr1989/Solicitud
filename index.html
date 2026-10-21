@@ -178,8 +178,8 @@ function blank(){
     notas:"", acepta:false
   };
 }
-function save(){ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({S,step})); }catch(e){} }
-function load(){ try{ const d = JSON.parse(localStorage.getItem(DRAFT_KEY)||"null"); if(d && d.S){ S = Object.assign(blank(), d.S); step = Math.min(d.step||0, 4); return true; } }catch(e){} return false; }
+function save(){ if(S._generado) return; try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({S,step})); }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(DRAFT_KEY)||"null"); if(d && d.S && d.S._generado){ clearDraft(); return false; } if(d && d.S){ S = Object.assign(blank(), d.S); step = Math.min(d.step||0, 4); return true; } }catch(e){} return false; }
 function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
 
 const STEPS = ["1. Cliente","2. Equipos","3. Servicio por equipo","4. Servicio en sitio","5. Revisar y enviar"];
@@ -510,6 +510,7 @@ function vwFinal(){
       <button class="btn gold" data-a="gen">① Descargar archivo de solicitud</button>
       <button class="btn" data-a="upload" ${S._generado?"":"disabled"}>② Subir archivo a Metrological Center</button>
       <button class="btn sec" data-a="print">Imprimir / guardar copia</button>
+      ${S._generado?'<button class="btn sec" data-a="nueva">Hacer otra solicitud</button>':""}
     </div>
     ${S._generado?`<div class="note ok">Archivo generado: <b>${esc(S._generado)}</b>. Ahora pulse «② Subir archivo», elija ese archivo (está en su carpeta de Descargas) y confirme la carga. ${esc(EJ_OBJ.n)} recibirá su solicitud automáticamente.</div>`:""}
   </div>
@@ -640,6 +641,7 @@ function act(a, el){
   }
   if(a === "upload"){ if(/^https:\/\//.test(FILE_REQUEST_URL)) window.open(FILE_REQUEST_URL,"_blank","noopener"); else alert("El enlace de carga no está configurado. Comuníquese con su ejecutiva comercial."); return; }
   if(a === "print"){ window.print(); return; }
+  if(a === "nueva"){ if(confirm("¿Ya subió el archivo de esta solicitud? Se limpiará el formulario para una nueva.")){ clearDraft(); S = blank(); step = 0; showErr = false; render(); window.scrollTo(0,0); } return; }
 }
 function newItem(o){
   const it = {magnitud:"",equipo:"",marca:"",modelo:"",serie:"",id:"",resolucion:"",ubicacion:"",tipo_servicio:"",puntos:"",conformidad:"",emp:"",origen_emp:"",incertidumbre:""};
@@ -737,7 +739,7 @@ function generate(){
   const blob = new Blob([JSON.stringify(out,null,2)], {type:"application/json"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
-  S._generado = fname; save(); render();
+  S._generado = fname; clearDraft(); render();
   document.getElementById("envio")?.scrollIntoView({behavior:"smooth"});
 }
 
