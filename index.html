@@ -250,7 +250,8 @@ function vCliente(){
   const cots = cotizacionesDisponibles();
   if(!c.cotizacion.trim()) e["cliente.cotizacion"] = cots.length ? "Seleccione la cotización" : "Indique el número de la cotización aceptada";
   else if(cots.length && !cots.includes(c.cotizacion)) e["cliente.cotizacion"] = "Seleccione una cotización de la lista";
-  if(!isEmail(c.correo_facturas)) e["cliente.correo_facturas"] = "Correo no válido";
+  if(!["SI","NO"].includes(c.fact_mismo)) e["cliente.fact_mismo"] = "Seleccione una opción";
+  else if(c.fact_mismo === "NO" && !isEmail(c.correo_facturas)) e["cliente.correo_facturas"] = "Correo no válido";
   if(!SND.includes(r.tercero)) e["resultados.tercero"] = "Seleccione una opción";
   if(r.tercero === "SI"){
     if(!r.nombre.trim()) e["resultados.nombre"] = "Obligatorio";
@@ -423,7 +424,8 @@ function vwCliente(){
     ${inp("cliente.correo","1.6 Correo electrónico",{req:1,type:"email",hint:"Aquí recibirá el PCO-FO-04 en PDF"})}
     ${cotizacionHtml()}
     ${inp("cliente.orden","1.8 Orden de compra / Contrato")}
-    ${inp("cliente.correo_facturas","1.9 Correo para facturas electrónicas",{req:1,type:"email"})}
+    <div>${radios("cliente.fact_mismo","1.9 ¿El correo para facturas electrónicas es el mismo del 1.6?",["SI","NO"],{req:1})}
+    ${S.cliente.fact_mismo==="NO"?inp("cliente.correo_facturas","Correo para facturas electrónicas",{req:1,type:"email"}):""}</div>
   </div></div>
   <div class="card"><h2>2. Datos para la emisión de resultados</h2>
     ${radios("resultados.tercero","¿Los resultados se emiten a nombre de un tercero?",SND,{req:1})}
@@ -867,7 +869,7 @@ function generate(){
     fecha_local: `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
     ejecutiva:{iniciales:EJ, nombre:EJ_OBJ.n},
     cliente_nuevo: (S.base||{}).estado === "nuevo",
-    cliente:Object.assign({}, S.cliente, {orden:nd(S.cliente.orden)}), resultados:S.resultados, lugar:S.lugar,
+    cliente:Object.assign({}, S.cliente, {orden:nd(S.cliente.orden), correo_facturas: S.cliente.fact_mismo === "SI" ? S.cliente.correo : S.cliente.correo_facturas}), resultados:S.resultados, lugar:S.lugar,
     equipos:S.equipos.map((q,i)=>({item:i+1, magnitud:q.magnitud, equipo:q.equipo, marca:q.marca, modelo:q.modelo, serie:nd(q.serie), id:nd(q.id),
       resolucion:conUnidad(q.resolucion, q.res_uni), ubicacion:nd(q.ubicacion), requisitos:reqOf(q.magnitud), tipo_servicio:q.tipo_servicio, puntos:(PUNTOS_FIJOS[q.magnitud] ? puntosFijosTexto(q) : conUnidad(String(q.puntos||"").replace(/\s*[;|]\s*/g,"\\"), q.pts_uni)),
       declaracion_conformidad: q.conformidad==="SI" ? CAT.decl.si : CAT.decl.no,
@@ -935,7 +937,7 @@ function aplicarSede(i){
   if(i >= 0){
     const x = b.sedes[i];
     c.direccion = x.dir || ""; c.ciudad = x.ciu || c.ciudad; c.sede = x.sede || "";
-    if(x.con) c.contacto = x.con; if(x.cor) c.correo = x.cor; if(x.cfe) c.correo_facturas = x.cfe;
+    if(x.con) c.contacto = x.con; if(x.cor) c.correo = x.cor; if(x.cfe){ c.correo_facturas = x.cfe; c.fact_mismo = x.cfe === c.correo ? "SI" : "NO"; }
   } else { c.direccion = ""; c.sede = i === -1 ? "Otra sede" : ""; }
   const cots = cotizacionesDisponibles();
   c.cotizacion = cots.length === 1 ? cots[0] : (cots.includes(c.cotizacion) ? c.cotizacion : "");
@@ -949,78 +951,218 @@ function cotizacionesDisponibles(){
   return [];
 }
 
-/* ====== PANTALLA INTERNA ?admin: genera clientes.dat desde el Excel maestro ====== */
-let ADMIN_DB = null;
+/* ====== PANTALLA INTERNA ?admin: genera clientes.dat ====== */
+/* Acepta: (a) Terceros (software contable) + Base de cotizaciones, o (b) el Excel maestro Clientes_PCO-FO-04 */
+let ADMIN_DB = null, ADMIN_INF = [];
+const DEPTO_DANE = {"05":"Antioquia","08":"Atlántico","11":"Bogotá D.C.","13":"Bolívar","15":"Boyacá","17":"Caldas","18":"Caquetá","19":"Cauca","20":"Cesar","23":"Córdoba","25":"Cundinamarca","27":"Chocó","41":"Huila","44":"La Guajira","47":"Magdalena","50":"Meta","52":"Nariño","54":"Norte de Santander","63":"Quindío","66":"Risaralda","68":"Santander","70":"Sucre","73":"Tolima","76":"Valle del Cauca","81":"Arauca","85":"Casanare","86":"Putumayo","88":"Archipiélago de San Andrés, Providencia y Santa Catalina","91":"Amazonas","94":"Guainía","95":"Guaviare","97":"Vaupés","99":"Vichada"};
+const MUN_IDX = (() => { const m = new Map(); CAT.mun.forEach(x => { const [c, d] = x.split(" - "); const k = norm(c); if(!m.has(k)) m.set(k, []); m.get(k).push({x, d: norm(d)}); }); return m; })();
+// Ciudad del software (nombre + código DANE) -> formato de la página "Ciudad - Departamento"
+function ciudadOficial(nombre, codigo, depto){
+  let n = norm(nombre).replace(/\bd c\b/g, "").trim(); if(n.startsWith("bogota")) return "Bogotá D.C. - Bogotá D.C.";
+  const cod = String(codigo ?? "").replace(/\D/g, "").padStart(5, "0");
+  const dep = norm(DEPTO_DANE[cod.slice(0, 2)] || depto || "");
+  const c = MUN_IDX.get(n) || [];
+  return (c.find(y => y.d === dep) || (c.length === 1 ? c[0] : null) || {}).x || "";
+}
+// Ciudad escrita a mano en la cotización ("BOGOTA", "Cota", "Soacha/ Cundinamarca")
+function ciudadTexto(t){
+  const s = String(t ?? "").split(/[\/\-]/)[0]; const n = norm(s).replace(/\bd c\b/g, "").trim();
+  if(!n) return ""; if(n.startsWith("bogota")) return "Bogotá D.C. - Bogotá D.C.";
+  const c = MUN_IDX.get(n) || []; return c.length ? (c.find(y => y.d === "cundinamarca") || c[0]).x : "";
+}
+function ciudadEnTexto(t){
+  const n = " " + norm(t) + " "; if(!n.trim()) return "";
+  if(/ bogota /.test(n)) return "Bogotá D.C. - Bogotá D.C.";
+  let mejor = null;
+  MUN_IDX.forEach((lista, k) => { if(k.length > 3 && n.includes(" " + k + " ") && (!mejor || k.length > mejor.k.length)) mejor = {k, lista}; });
+  return mejor ? (mejor.lista.find(y => y.d === "cundinamarca") || mejor.lista[0]).x : "";
+}
+// Dígito de verificación DIAN
+function dvNit(n){ const p = [3,7,13,17,19,23,29,37,41,43,47,53,59,67,71]; let s = 0; [...n].reverse().forEach((d, i) => s += (+d) * p[i]); const r = s % 11; return r < 2 ? r : 11 - r; }
+function nitBase(v){ const d = String(v ?? "").replace(/\D/g, ""); return d.length === 10 && dvNit(d.slice(0, 9)) === +d[9] ? d.slice(0, 9) : d; }
+// Nombre comparable: sin tildes, sin signos ni formas societarias
+const SUFIJOS = /\b(s ?a ?s|s ?a|ltda|limitada|e ?s ?p|y cia|cia|sociedad|por acciones|simplificada|ci|c i|de c ?v|sas|s en c)\b/g;
+const nombreClave = t => norm(t).replace(SUFIJOS, " ").replace(/\b\d+\b/g, " ").replace(/\s+/g, " ").trim();
+function parecidos(a, b){ if(nombreClave(a) === nombreClave(b)) return 1; const A = new Set(nombreClave(a).split(" ").filter(x => x.length > 2)), B = new Set(nombreClave(b).split(" ").filter(x => x.length > 2)); if(!A.size || !B.size) return 0; let c = 0; A.forEach(x => B.has(x) && c++); return c / Math.min(A.size, B.size); }
+// Dirección comparable: misma dirección escrita de distintas formas -> misma clave
+const VIAS = {cl:"calle",cll:"calle",calle:"calle",cr:"carrera",cra:"carrera",kr:"carrera",kra:"carrera",carrera:"carrera",carera:"carrera",av:"avenida",avenida:"avenida",ak:"avenida carrera",ac:"avenida calle",tv:"transversal",transversal:"transversal",dg:"diagonal",diagonal:"diagonal",km:"kilometro",kilometro:"kilometro",aut:"autopista",autopista:"autopista"};
+const CORTE = new Set(["of","oficina","bodega","bg","int","in","interior","to","torre","p","piso","apto","apartamento","local","lc","barrio","brr","ed","edificio","casa","mz","manzana"]);
+function claveDir(d){
+  const t = norm(String(d ?? "").split("\\")[0]).replace(/(\d)([a-z])/g, "$1 $2").replace(/([a-z])(\d)/g, "$1 $2").split(" ").filter(x => x && !["no","n","numero","bis"].includes(x));
+  const k = []; for(const x of t){ if(CORTE.has(x)) break; k.push(VIAS[x] || x); }
+  return k.slice(0, 7).join(" ");
+}
+const esDireccion = d => { const t = String(d ?? "").split("\\")[0].trim(); return t.length >= 6 && !placeholderReason(t) && !ciudadTexto(t); };
+const dirLimpia = d => String(d ?? "").split("\\")[0].replace(/\s+/g, " ").replace(/\s*\(!\)\s*/g, " ").trim();
+const nombreSede = (ciu, dir) => { const d = String(dir ?? ""); return (ciu ? ciu.split(" - ")[0] : "Sin ciudad") + " – " + (d.length > 60 ? d.slice(0, 57).trim() + "…" : d); };
+
 function renderAdmin(){
   $("#app").innerHTML = `<div class="card"><h2>Actualizar base de clientes</h2>
-    <p class="lead">Uso interno. Arrastre el archivo <b>Clientes_PCO-FO-04.xlsx</b> (hojas «Clientes» y «Cotizaciones»). El archivo no sale de su computador: aquí se cifra y se descarga <b>clientes.dat</b>, que luego sube a GitHub junto al index.html.</p>
-    <div class="drop" id="adrop"><p style="margin:0 0 10px"><b>Arrastre aquí el Excel maestro</b> o</p><button class="btn" id="apick">Seleccionar archivo</button><input type="file" id="afile" accept=".xlsx,.xls" class="hidden"></div>
+    <p class="lead">Uso interno. Arrastre <b>los dos archivos</b>: el de <b>Terceros</b> del software contable y la <b>Base de cotizaciones</b>, tal como salen. Los archivos no salen de su computador: aquí se cotejan, se cifran y se descarga <b>clientes.dat</b> para subirlo a GitHub.</p>
+    <div class="drop" id="adrop"><p style="margin:0 0 10px"><b>Arrastre aquí los dos archivos</b> (.xls o .xlsx) o</p><button class="btn" id="apick">Seleccionar archivos</button><input type="file" id="afile" accept=".xlsx,.xls" multiple class="hidden"></div>
     <div id="aout" style="margin-top:12px"></div></div>`;
   const f = $("#afile"), d = $("#adrop");
   $("#apick").onclick = () => f.click();
-  f.onchange = e => e.target.files[0] && adminLeer(e.target.files[0]);
+  f.onchange = e => adminLeer([...e.target.files]);
   ["dragenter","dragover"].forEach(t => d.addEventListener(t, e => { e.preventDefault(); d.classList.add("over"); }));
   ["dragleave","drop"].forEach(t => d.addEventListener(t, e => { e.preventDefault(); d.classList.remove("over"); }));
-  d.addEventListener("drop", e => e.dataTransfer.files[0] && adminLeer(e.dataTransfer.files[0]));
+  d.addEventListener("drop", e => adminLeer([...e.dataTransfer.files]));
 }
-function adminLeer(file){
+const leerLibro = file => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => { try{ ok(XLSX.read(r.result, {type:"array", cellDates:false})); }catch(e){ mal(e); } }; r.onerror = mal; r.readAsArrayBuffer(file); });
+const filasDe = ws => XLSX.utils.sheet_to_json(ws, {header:1, defval:"", raw:false, blankrows:false});
+function clasificar(wb){
+  for(const n of wb.SheetNames){
+    const f = filasDe(wb.Sheets[n]);
+    const hi = f.slice(0, 15).findIndex(r => r.some(c => norm(c) === "identificacion") && r.some(c => norm(c) === "nombre fiscal"));
+    if(hi >= 0) return {tipo:"terceros", filas:f, hi};
+    if(f.filter(r => /^\d{2}-\d{3,}$/.test(String(r[0]).trim())).length >= 3) return {tipo:"cotizaciones", filas:f};
+    if(norm(n) === "clientes" && f[0] && f[0].some(c => norm(c).startsWith("nit")) && f[0].some(c => norm(c).startsWith("razon social"))) return {tipo:"maestro", libro:wb};
+  }
+  return {tipo:"desconocido"};
+}
+async function adminLeer(files){
   const out = $("#aout");
   if(typeof XLSX === "undefined"){ out.innerHTML = `<div class="note err">No se pudo cargar el lector de Excel. Revise su conexión.</div>`; return; }
-  const rd = new FileReader();
-  rd.onload = async () => {
-    try{
-      const wb = XLSX.read(rd.result, {type:"array"});
-      const hoja = n => { const k = wb.SheetNames.find(x => norm(x) === norm(n)); return k ? XLSX.utils.sheet_to_json(wb.Sheets[k], {header:1, defval:"", raw:false, blankrows:false}) : null; };
-      const cl = hoja("Clientes"), co = hoja("Cotizaciones") || [];
-      if(!cl) throw new Error("No se encontró la hoja «Clientes».");
-      const col = (hdr, ...claves) => hdr.findIndex(h => claves.some(c => norm(h).startsWith(c)));
-      const H = cl[0], iN = col(H,"nit"), iS = col(H,"sede"), iR = col(H,"razon social","nombre"), iD = col(H,"direccion"), iC = col(H,"ciudad"), iP = col(H,"persona de contacto","contacto"), iE = col(H,"correo de contacto","correo electronico","correo contacto"), iF = col(H,"correo facturas","correo de facturas","correo para facturas");
-      if(iN < 0 || iR < 0) throw new Error("La hoja «Clientes» debe tener las columnas NIT y Razón social.");
-      const avisos = [], g = new Map();
-      cl.slice(1).forEach((r, k) => {
-        const nit = soloNit(r[iN]); if(!nit){ if(r.some(x => String(x).trim())) avisos.push(`Clientes fila ${k+2}: sin NIT`); return; }
-        const ciu = String(r[iC] ?? "").trim();
-        if(ciu && !MUN_SET.has(ciu)) avisos.push(`Clientes fila ${k+2}: ciudad «${ciu}» no está en la lista`);
-        if(!g.has(nit)) g.set(nit, {n: String(r[iR]).trim(), s: []});
-        const x = g.get(nit), sede = String(iS >= 0 ? r[iS] : "").trim() || ("Sede " + (x.s.length + 1));
-        x.s.push({sede, dir: String(r[iD] ?? "").trim(), ciu, con: String(iP>=0 ? r[iP] : "").trim(), cor: String(iE>=0 ? r[iE] : "").trim(), cfe: String(iF>=0 ? r[iF] : "").trim(), cot: []});
-      });
-      let nCot = 0;
-      if(co.length){
-        const Q = co[0], qN = col(Q,"nit"), qS = col(Q,"sede"), qQ = col(Q,"numero","cotizacion"), qE = col(Q,"estado");
-        co.slice(1).forEach((r, k) => {
-          const nit = soloNit(r[qN]), num = String(r[qQ] ?? "").trim(); if(!nit || !num) return;
-          if(qE >= 0 && norm(r[qE]) !== "vigente") return;          // solo cotizaciones vigentes
-          const x = g.get(nit); if(!x){ avisos.push(`Cotizaciones fila ${k+2}: NIT ${nit} no está en «Clientes»`); return; }
-          const sede = String(qS >= 0 ? r[qS] : "").trim();
-          const dest = sede ? x.s.filter(y => norm(y.sede) === norm(sede)) : x.s;
-          if(!dest.length){ avisos.push(`Cotizaciones fila ${k+2}: la sede «${sede}» no existe para el NIT ${nit}`); return; }
-          dest.forEach(y => { if(!y.cot.includes(num)) y.cot.push(num); }); nCot++;
-        });
+  try{
+    const lib = await Promise.all(files.map(leerLibro)), cl = lib.map(clasificar);
+    const ter = cl.find(x => x.tipo === "terceros"), cot = cl.find(x => x.tipo === "cotizaciones"), mae = cl.find(x => x.tipo === "maestro");
+    let g;
+    if(ter && cot) g = cotejar(ter, cot);
+    else if(mae) g = desdeMaestro(mae.libro);
+    else throw new Error(ter ? "Falta el archivo de cotizaciones." : cot ? "Falta el archivo de Terceros." : "No reconocí los archivos. Arrastre el de Terceros y el de cotizaciones.");
+    await generarDat(g);
+  }catch(e){ out.innerHTML = `<div class="note err">${esc(e.message)}</div>`; }
+}
+
+/* ---- Cotejo Terceros + Cotizaciones ---- */
+function cotejar(ter, cot){
+  ADMIN_INF = [];
+  const inf = (tipo, detalle, extra = {}) => ADMIN_INF.push(Object.assign({tipo, detalle}, extra));
+  // 1. Terceros: solo clientes
+  const H = ter.filas[ter.hi].map(norm), col = (...k) => H.findIndex(h => k.some(x => h.startsWith(x)));
+  const iId = col("identificacion"), iNom = col("nombre fiscal"), iCom = col("nombre comercial"), iCli = col("indicador cliente"),
+        iD1 = col("direccion 1"), iD2 = col("direccion 2"), iD3 = col("direccion 3"), iE1 = col("email 1"), iDep = col("departamento"),
+        iCiu = H.findIndex(h => h === "ciudad"), iCod = col("codigo ciudad");
+  const clientes = new Map(), porNombre = new Map();
+  ter.filas.slice(ter.hi + 1).forEach((r, k) => {
+    const nit = String(r[iId] ?? "").replace(/\D/g, ""); if(!nit) return;
+    if(iCli >= 0 && !norm(r[iCli]).startsWith("si")) return;                 // solo clientes
+    const nombre = String(r[iNom] || r[iCom] || "").trim();
+    const dir = [r[iD1], r[iD2], r[iD3]].map(x => String(x ?? "").trim()).filter(Boolean).join(" ");
+    const ciu = ciudadOficial(r[iCiu], r[iCod], r[iDep]);
+    if(!ciu) inf("Ciudad no reconocida", `Terceros fila ${ter.hi + k + 2}: «${r[iCiu]}» (código ${r[iCod]})`, {nit, cliente:nombre});
+    clientes.set(nit, {n: nombre, alt: String(r[iCom] ?? "").trim(), dirP: dir, ciuP: ciu, corP: String(r[iE1] ?? "").split(/[;,]/)[0].trim(), sedes: new Map(), con: "", cor: "", fcon: -1});
+    porNombre.set(nombreClave(nombre), nit);
+    if(iCom >= 0 && String(r[iCom] ?? "").trim()) porNombre.set(nombreClave(r[iCom]), nit);
+  });
+  // 2. Cotizaciones del año en curso
+  const anio = String(new Date().getFullYear()).slice(2);
+  let nCot = 0, nFuera = 0;
+  cot.filas.forEach(r => {
+    const num = String(r[0]).trim(); if(!/^\d{2}-\d{3,}$/.test(num)) return;
+    if(num.slice(0, 2) !== anio){ nFuera++; return; }
+    const nomC = String(r[2] ?? "").trim(), raw = String(r[5] ?? "").trim(), fecha = +r[1] || 0;
+    // Llave: NIT sin DV -> reparaciones -> nombre
+    const d = raw.replace(/\D/g, ""), cands = [nitBase(raw), d, d.slice(0, 9), d.slice(0, 10), d.slice(0, -1)].filter((x, i, a) => x && a.indexOf(x) === i);
+    let nit = cands.find(x => clientes.has(x)), como = "";
+    if(nit && nit !== nitBase(raw)) como = `NIT reparado: ${raw} → ${nit}`;
+    if(!nit){ const n2 = porNombre.get(nombreClave(nomC)); if(n2){ nit = n2; como = `NIT ${raw || "(vacío)"} reparado por nombre → ${nit}`; } }
+    if(!nit){ inf("Cliente no está en Terceros", `${nomC} · NIT ${raw}`, {cotizacion:num}); return; }
+    const c = clientes.get(nit);
+    if(como) inf("NIT reparado", como, {cotizacion:num, nit, cliente:c.n});
+    else if(Math.max(parecidos(nomC, c.n), c.alt ? parecidos(nomC, c.alt) : 0) < 0.34) inf("Nombre distinto al de Terceros", `Cotización: «${nomC}» · Terceros: «${c.n}»`, {cotizacion:num, nit});
+    // Sede: dirección normalizada distinta de la principal
+    const dirC = String(r[4] ?? ""), kC = claveDir(dirC), kP = claveDir(c.dirP);
+    let sede = "P";
+    if(esDireccion(dirC) && kC && kC !== kP){
+      if(!c.sedes.has(kC)){
+        const ciu = ciudadTexto(dirC.split("\\")[1]) || ciudadEnTexto(dirC.split("\\")[1]) || ciudadEnTexto(dirC.split("\\")[0]) || ciudadTexto(r[9]) || c.ciuP;
+        c.sedes.set(kC, {dir: dirLimpia(dirC), ciu, cot: []});
+        inf("Sede adicional detectada", `${c.n}: ${nombreSede(ciu, dirLimpia(dirC))} (principal: ${c.dirP})`, {cotizacion:num, nit});
       }
-      const salt = crypto.getRandomValues(new Uint8Array(16)), db = {v:1, it:ITER_BASE, salt:b64e(salt), fecha:new Date().toISOString().slice(0,10), r:{}};
-      let i = 0;
-      for(const [nit, x] of g){
-        const {idx, key} = await derivar(nit, salt, ITER_BASE);
-        const ck = await crypto.subtle.importKey("raw", key, "AES-GCM", false, ["encrypt"]);
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const ct = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, ck, te.encode(JSON.stringify(x))));
-        db.r[idx] = [b64e(iv), b64e(ct)];
-        if(++i % 10 === 0) out.innerHTML = `<div class="note">Cifrando… ${i} de ${g.size} clientes</div>`;
-      }
-      ADMIN_DB = db;
-      const blob = new Blob([JSON.stringify(db)], {type:"application/octet-stream"});
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "clientes.dat"; document.body.appendChild(a); a.click(); a.remove();
-      out.innerHTML = `<div class="note ok"><b>clientes.dat</b> descargado: ${g.size} clientes, ${[...g.values()].reduce((t,x)=>t+x.s.length,0)} sedes, ${nCot} cotizaciones vigentes.<br>Súbalo a GitHub (Add file → Upload files) en el mismo repositorio del index.html.</div>
-        ${avisos.length ? `<div class="note warn"><b>Revise estas filas (${avisos.length}):</b><ul class="errlist" style="color:inherit">${avisos.slice(0,80).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
-        <div class="f" style="max-width:420px;margin-top:10px"><label>Probar un NIT</label><div class="nitrow"><input type="text" id="anit" placeholder="NIT"><button class="btn sec" id="aprobar">Probar</button></div></div><pre id="ares" class="link" style="white-space:pre-wrap;display:none"></pre>`;
-      $("#aprobar").onclick = async () => {
-        let r = null; for(const c of nitCandidatos($("#anit").value)){ r = await buscarEnBase(ADMIN_DB, c).catch(() => null); if(r) break; }
-        const pre = $("#ares"); pre.style.display = "block"; pre.textContent = r ? JSON.stringify(r, null, 2) : "NIT no encontrado";
-      };
-    }catch(e){ out.innerHTML = `<div class="note err">${esc(e.message)}</div>`; }
+      sede = kC;
+    } else if(dirC.trim() && !esDireccion(dirC)) inf("Dirección no válida", `«${dirLimpia(dirC)}» no es una dirección; se asignó a la sede principal`, {cotizacion:num, nit, cliente:c.n});
+    if(sede === "P"){ c.cotP = c.cotP || []; if(!c.cotP.includes(num)) c.cotP.push(num); }
+    else { const s = c.sedes.get(sede); if(!s.cot.includes(num)) s.cot.push(num); }
+    // Contacto y correo de la cotización más reciente (col. J si es un nombre y no una ciudad)
+    if(fecha >= c.fcon){
+      const j = String(r[9] ?? "").trim(), cor = String(r[7] ?? "").split(/[;,\s]/).find(x => x.includes("@")) || "";
+      const j1 = j.split(/\\|;|\//)[0].trim();
+      if(j1 && !ciudadTexto(j1) && !placeholderReason(j1)){ c.con = j1; c.fcon = fecha; }
+      if(cor) c.cor = cor;
+    }
+    nCot++;
+  });
+  // 3. Estructura para la página
+  const g = new Map();
+  clientes.forEach((c, nit) => {
+    const s = [{sede: nombreSede(c.ciuP, c.dirP), dir: c.dirP, ciu: c.ciuP, con: c.con, cor: c.cor || c.corP, cfe: "", cot: (c.cotP || []).sort().reverse()}];
+    c.sedes.forEach(x => s.push({sede: nombreSede(x.ciu, x.dir), dir: x.dir, ciu: x.ciu, con: c.con, cor: c.cor || c.corP, cfe: "", cot: x.cot.sort().reverse()}));
+    g.set(nit, {n: c.n, s});
+  });
+  g._resumen = `${clientes.size} clientes de Terceros · ${nCot} cotizaciones del 20${anio} cotejadas${nFuera ? ` · ${nFuera} de otros años excluidas` : ""}`;
+  return g;
+}
+
+/* ---- Excel maestro Clientes_PCO-FO-04 (formato anterior) ---- */
+function desdeMaestro(wb){
+  ADMIN_INF = [];
+  const hoja = n => { const k = wb.SheetNames.find(x => norm(x) === norm(n)); return k ? filasDe(wb.Sheets[k]) : null; };
+  const cl = hoja("Clientes"), co = hoja("Cotizaciones") || [];
+  const col = (hdr, ...claves) => hdr.findIndex(h => claves.some(c => norm(h).startsWith(c)));
+  const H = cl[0], iN = col(H,"nit"), iS = col(H,"sede"), iR = col(H,"razon social"), iD = col(H,"direccion"), iC = col(H,"ciudad"), iP = col(H,"persona de contacto","contacto"), iE = col(H,"correo de contacto","correo contacto");
+  const g = new Map();
+  cl.slice(1).forEach((r, k) => {
+    const nit = nitBase(r[iN]); if(!nit) return;
+    const ciu = String(r[iC] ?? "").trim(); if(ciu && !MUN_SET.has(ciu)) ADMIN_INF.push({tipo:"Ciudad no reconocida", detalle:`Clientes fila ${k+2}: «${ciu}»`});
+    if(!g.has(nit)) g.set(nit, {n: String(r[iR]).trim(), s: []});
+    const x = g.get(nit);
+    x.s.push({sede: String(iS >= 0 ? r[iS] : "").trim() || nombreSede(ciu, String(r[iD] ?? "").trim()), dir: String(r[iD] ?? "").trim(), ciu, con: String(iP>=0 ? r[iP] : "").trim(), cor: String(iE>=0 ? r[iE] : "").trim(), cfe: "", cot: []});
+  });
+  if(co.length){
+    const Q = co[0], qN = col(Q,"nit"), qS = col(Q,"sede"), qQ = col(Q,"numero","cotizacion"), qE = col(Q,"estado");
+    co.slice(1).forEach((r, k) => {
+      const nit = nitBase(r[qN]), num = String(r[qQ] ?? "").trim(); if(!nit || !num) return;
+      if(qE >= 0 && norm(r[qE]) !== "vigente") return;
+      const x = g.get(nit); if(!x){ ADMIN_INF.push({tipo:"Cliente no está en Clientes", detalle:`Cotizaciones fila ${k+2}: NIT ${nit}`}); return; }
+      const sede = String(qS >= 0 ? r[qS] : "").trim(), dest = sede ? x.s.filter(y => norm(y.sede) === norm(sede)) : x.s;
+      dest.forEach(y => { if(!y.cot.includes(num)) y.cot.push(num); });
+    });
+  }
+  g._resumen = `${g.size} clientes desde el Excel maestro`;
+  return g;
+}
+
+/* ---- Cifrado y descarga ---- */
+async function generarDat(g){
+  const out = $("#aout");
+  const salt = crypto.getRandomValues(new Uint8Array(16)), db = {v:1, it:ITER_BASE, salt:b64e(salt), fecha:new Date().toISOString().slice(0,10), r:{}};
+  let i = 0;
+  for(const [nit, x] of g){
+    const {idx, key} = await derivar(nit, salt, ITER_BASE);
+    const ck = await crypto.subtle.importKey("raw", key, "AES-GCM", false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    db.r[idx] = [b64e(iv), b64e(new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, ck, te.encode(JSON.stringify(x)))))];
+    if(++i % 25 === 0) out.innerHTML = `<div class="note">Cifrando… ${i} de ${g.size} clientes</div>`;
+  }
+  ADMIN_DB = db;
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(db)], {type:"application/octet-stream"})); a.download = "clientes.dat"; document.body.appendChild(a); a.click(); a.remove();
+  const grupos = {}; ADMIN_INF.forEach(x => (grupos[x.tipo] = grupos[x.tipo] || []).push(x));
+  const sedes = [...g.values()].reduce((t, x) => t + x.s.length, 0), cots = [...g.values()].reduce((t, x) => t + x.s.reduce((u, s) => u + s.cot.length, 0), 0);
+  out.innerHTML = `<div class="note ok"><b>clientes.dat</b> descargado. ${esc(g._resumen)}. Quedaron ${g.size} clientes, ${sedes} sedes y ${cots} cotizaciones.<br>Súbalo a GitHub (Add file → Upload files) en el mismo repositorio del index.html.</div>
+    ${ADMIN_INF.length ? `<div class="note warn"><b>Informe de cotejo (${ADMIN_INF.length})</b> — revise y corrija en el origen:
+      <ul style="margin:6px 0 0;padding-left:18px">${Object.entries(grupos).map(([t, l]) => `<li><b>${esc(t)}</b>: ${l.length}</li>`).join("")}</ul>
+      <button class="btn sec small" id="ainf" style="margin-top:8px">Descargar informe en Excel</button></div>` : ""}
+    <div class="f" style="max-width:420px;margin-top:10px"><label>Probar un NIT</label><div class="nitrow"><input type="text" id="anit" placeholder="NIT"><button class="btn sec" id="aprobar">Probar</button></div></div><pre id="ares" class="link" style="white-space:pre-wrap;display:none"></pre>`;
+  const bi = $("#ainf"); if(bi) bi.onclick = () => {
+    const wb = XLSX.utils.book_new(), ws = XLSX.utils.json_to_sheet(ADMIN_INF.map(x => ({Tipo:x.tipo, Cotización:x.cotizacion||"", NIT:x.nit||"", Cliente:x.cliente||"", Detalle:x.detalle})));
+    ws["!cols"] = [{wch:30},{wch:12},{wch:14},{wch:40},{wch:100}]; XLSX.utils.book_append_sheet(wb, ws, "Informe");
+    XLSX.writeFile(wb, "Informe_cotejo_" + db.fecha + ".xlsx");
   };
-  rd.readAsArrayBuffer(file);
+  $("#aprobar").onclick = async () => {
+    let r = null; for(const c of nitCandidatos($("#anit").value)){ r = await buscarEnBase(ADMIN_DB, c).catch(() => null); if(r) break; }
+    const pre = $("#ares"); pre.style.display = "block"; pre.textContent = r ? JSON.stringify(r, null, 2) : "NIT no encontrado";
+  };
 }
 
 /* ====== INICIO ====== */
